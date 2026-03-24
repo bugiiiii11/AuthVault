@@ -5,8 +5,8 @@ AuthVault MVP -- self-hosted Web3Auth replacement for Swarm Resistance gaming pl
 Authentication + transaction signing only. No wallet UI, no token display, no custody.
 
 ## Current State
-- Session: 1
-- Phase: Pre-development (skills, hooks, docs setup)
+- Session: 1 complete
+- Phase: Crypto core done, backend auth next
 - Repo: github.com/bugiiiii11/AuthVault
 - Infra: Supabase (fresh project) + Railway (backend) + Vercel (frontend)
 
@@ -37,6 +37,7 @@ Authentication + transaction signing only. No wallet UI, no token display, no cu
 - `/wrap` -- Commit, push, update docs
 - `/doc-update` -- Update handoff.md and project docs
 - `/save` -- Emergency context save before compaction
+- `/design` -- Swarm Resistance UI system (colors, components, accessibility)
 
 ## Key Files
 - `handoff.md` -- Session history and "What To Do Next"
