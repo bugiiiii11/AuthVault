@@ -1,6 +1,9 @@
 /**
  * Key generation and share storage routes.
  * Called after social login when user needs a new wallet.
+ *
+ * Note: encrypted_share and encryption_nonce are stored as TEXT (hex strings).
+ * PostgREST returns BYTEA as base64, which creates encoding ambiguity; TEXT avoids it.
  */
 import { Hono } from 'hono';
 import { requireAuth } from '../../middleware/auth';
@@ -39,15 +42,15 @@ keys.post(
     const curve = body.curve || 'secp256k1';
 
     try {
-      // Store server share (index 2)
+      // Store server share (index 2) -- hex strings stored directly as TEXT
       const { error: serverErr } = await adminClient
         .from('key_shares')
         .upsert({
           user_id: auth.sub,
           share_index: 2,
           share_type: 'server',
-          encrypted_share: hexToBytes(body.encryptedShares.server.ciphertext),
-          encryption_nonce: hexToBytes(body.encryptedShares.server.nonce),
+          encrypted_share: body.encryptedShares.server.ciphertext,
+          encryption_nonce: body.encryptedShares.server.nonce,
           curve,
           device_id: auth.deviceId,
           is_active: true,
@@ -63,8 +66,8 @@ keys.post(
             user_id: auth.sub,
             share_index: 3,
             share_type: 'recovery',
-            encrypted_share: hexToBytes(body.encryptedShares.recovery.ciphertext),
-            encryption_nonce: hexToBytes(body.encryptedShares.recovery.nonce),
+            encrypted_share: body.encryptedShares.recovery.ciphertext,
+            encryption_nonce: body.encryptedShares.recovery.nonce,
             curve,
             is_active: true,
           }, { onConflict: 'user_id,share_index,curve' });
@@ -88,7 +91,7 @@ keys.post(
 /**
  * GET /api/keys/server-share
  * Retrieve the encrypted server share for the current user.
- * Used during login to reconstruct the key with device share.
+ * Used during signing to reconstruct the key with device share.
  */
 keys.get(
   '/server-share',
@@ -114,9 +117,10 @@ keys.get(
         }, 404);
       }
 
+      // encrypted_share and encryption_nonce are already hex TEXT -- return directly
       return c.json({
-        encryptedShare: bytesToHex(data.encrypted_share),
-        nonce: bytesToHex(data.encryption_nonce),
+        encryptedShare: data.encrypted_share as string,
+        nonce: data.encryption_nonce as string,
       });
     } catch (err) {
       console.error('Share retrieval error:', err);
@@ -126,20 +130,5 @@ keys.get(
     }
   },
 );
-
-// Hex helpers
-function hexToBytes(hex: string): Uint8Array {
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
-  }
-  return bytes;
-}
-
-function bytesToHex(bytes: Uint8Array | number[]): string {
-  return Array.from(bytes)
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-}
 
 export default keys;

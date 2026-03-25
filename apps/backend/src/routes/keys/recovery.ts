@@ -145,8 +145,8 @@ recovery.post(
       const { error } = await adminClient
         .from('key_shares')
         .update({
-          encrypted_share: hexToBytes(body.encryptedServerShare.ciphertext),
-          encryption_nonce: hexToBytes(body.encryptedServerShare.nonce),
+          encrypted_share: body.encryptedServerShare.ciphertext,
+          encryption_nonce: body.encryptedServerShare.nonce,
           device_id: auth.deviceId,
         })
         .eq('user_id', auth.sub)
@@ -165,13 +165,5 @@ recovery.post(
     }
   },
 );
-
-function hexToBytes(hex: string): Uint8Array {
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
-  }
-  return bytes;
-}
 
 export default recovery;
