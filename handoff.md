@@ -19,17 +19,42 @@
 9. **Key lifecycle** -- generateAndDistributeKeys (generate, split, encrypt, store device + send server/recovery shares). Committed: 601d8d0.
 10. **Deployment config** -- Dockerfile (multi-stage, Node 20 Alpine) + railway.toml. Committed: 601d8d0.
 
+## Blockers Found
+
+- **Google Cloud Console** requires 2-Step Verification. User set up Authenticator but console still blocked. May need to sign out/in or wait longer. Google OAuth config deferred to next session.
+
 ## What To Do Next
 
 | Priority | Task | Details |
 |----------|------|---------|
-| 1 | Supabase Auth config | Enable Google OAuth provider in Supabase dashboard (manual) |
-| 2 | Deploy backend to Railway | Connect GitHub repo, set env vars, verify /api/health |
-| 3 | Deploy demo to Vercel | Connect GitHub repo, set VITE_ env vars |
-| 4 | Integration testing | Test full Google login + Email OTP + MetaMask flows end-to-end |
-| 5 | Recovery flow completion | Add recovery share retrieval endpoint, password-based recovery |
-| 6 | Web Worker signing | Move SSS reconstruction to Web Worker for v1.1 |
-| 7 | Integrate into Swarm Resistance | Replace Web3Auth with @authvault/sdk in game frontend |
+| 1 | Google 2SV fix | Sign out/in to Google, then access Cloud Console to create OAuth credentials |
+| 2 | Supabase Auth config | Enable Google OAuth provider with Client ID + Secret |
+| 3 | Deploy backend to Railway | Connect GitHub repo, set env vars from .env.example, verify /api/health |
+| 4 | Deploy demo to Vercel | Connect GitHub repo, set VITE_ env vars, verify build |
+| 5 | Integration testing | Test Email OTP + MetaMask flows end-to-end (Google after OAuth config) |
+| 6 | Recovery flow | Add recovery share retrieval endpoint, password-based recovery |
+| 7 | Web Worker signing | Move SSS reconstruction to Web Worker (v1.1) |
+| 8 | Integrate into Swarm Resistance | Replace Web3Auth with @authvault/sdk in game frontend |
+
+## Deployment Env Vars Needed
+
+### Railway (backend)
+```
+SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
+AUTHVAULT_JWT_SECRET (generate: openssl rand -hex 32)
+AUTHVAULT_ENCRYPTION_MASTER_KEY (generate: openssl rand -hex 32)
+UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN (optional for dev)
+ALLOWED_ORIGINS (your Vercel domain)
+PORT=3001
+NODE_ENV=production
+```
+
+### Vercel (demo)
+```
+VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+VITE_AUTHVAULT_BACKEND_URL (your Railway URL)
+VITE_WALLETCONNECT_PROJECT_ID
+```
 
 ## Key Files
 
