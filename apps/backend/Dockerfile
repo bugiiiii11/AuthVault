@@ -23,6 +23,7 @@ WORKDIR /app
 COPY --from=build /app/apps/backend/dist ./dist
 COPY --from=build /app/apps/backend/package.json ./
 COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/apps/backend/node_modules ./node_modules
 
 EXPOSE 3001
 ENV PORT=3001
