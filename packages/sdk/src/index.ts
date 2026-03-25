@@ -21,7 +21,7 @@ export type { WalletConnector, ConnectedWallet } from './connectors/types';
 // Core utilities
 export { AuthVaultClient, AuthVaultAPIError } from './core/client';
 export { getDeviceId, loadSession, clearSession } from './core/session';
-export { storeDeviceShare, getDeviceShare, hasDeviceShare, clearAllShares } from './core/deviceShare';
+export { storeDeviceShare, getDeviceShare, hasDeviceShare, clearAllShares, getOrCreateEncryptionKey } from './core/deviceShare';
 export { generateAndDistributeKeys } from './core/keyManager';
 
 // Crypto

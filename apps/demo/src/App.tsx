@@ -1,9 +1,35 @@
-import { useState } from 'react';
-import { useAuth, LoginModal } from '@authvault/sdk';
+import { useState, useCallback } from 'react';
+import { useAuth, useSigning, LoginModal, getOrCreateEncryptionKey } from '@authvault/sdk';
 
 export default function App() {
   const { status, user, logout } = useAuth();
+  const { signMessage } = useSigning();
   const [showLogin, setShowLogin] = useState(false);
+  const [sigResult, setSigResult] = useState<string | null>(null);
+  const [sigError, setSigError] = useState<string | null>(null);
+  const [signing, setSigning] = useState(false);
+
+  const handleSignTest = useCallback(async () => {
+    if (!user) return;
+    setSigning(true);
+    setSigResult(null);
+    setSigError(null);
+
+    try {
+      const message = `AuthVault sign test\nAddress: ${user.evmAddress}\nTimestamp: ${Date.now()}`;
+      const msgBytes = new TextEncoder().encode(message);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBytes);
+      const msgHash = new Uint8Array(hashBuffer);
+
+      const encKey = await getOrCreateEncryptionKey(user.id);
+      const { signature } = await signMessage(msgHash, encKey);
+      setSigResult(signature);
+    } catch (err) {
+      setSigError(err instanceof Error ? err.message : 'Signing failed');
+    } finally {
+      setSigning(false);
+    }
+  }, [user, signMessage]);
 
   return (
     <div className="min-h-screen bg-[#0F0F23] text-white flex items-center justify-center">
@@ -38,6 +64,42 @@ export default function App() {
                 Login: {user.loginMethod} {user.oauthProvider ? `(${user.oauthProvider})` : ''}
               </p>
             </div>
+
+            {/* Sign test -- only for social/email users who have Shamir keys */}
+            {user.loginMethod !== 'wallet' && user.evmAddress && (
+              <div className="space-y-3">
+                <button
+                  onClick={handleSignTest}
+                  disabled={signing}
+                  className="w-full py-3 px-4 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 rounded-lg font-medium hover:bg-cyan-500/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {signing ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Signing...
+                    </span>
+                  ) : 'Test: Sign Message'}
+                </button>
+
+                {sigResult && (
+                  <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg space-y-1">
+                    <p className="text-green-400 text-xs font-medium">Signature (secp256k1):</p>
+                    <p className="font-mono text-xs text-green-300 break-all">{sigResult}</p>
+                    <p className="text-gray-500 text-xs">SSS reconstruction + signing: OK</p>
+                  </div>
+                )}
+
+                {sigError && (
+                  <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                    <p className="text-red-400 text-xs">{sigError}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             <button
               onClick={logout}
               className="w-full py-3 px-4 bg-red-600/20 border border-red-500/30 text-red-400 rounded-lg font-medium hover:bg-red-600/30 transition-all duration-200"
