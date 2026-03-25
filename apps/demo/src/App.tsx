@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useAuth, useSigning, LoginModal, getOrCreateEncryptionKey } from '@authvault/sdk';
+import { useAuth, useSigning, LoginModal } from '@authvault/sdk';
 
 export default function App() {
   const { status, user, logout } = useAuth();
@@ -21,8 +21,7 @@ export default function App() {
       const hashBuffer = await crypto.subtle.digest('SHA-256', msgBytes);
       const msgHash = new Uint8Array(hashBuffer);
 
-      const encKey = await getOrCreateEncryptionKey(user.id);
-      const { signature } = await signMessage(msgHash, encKey);
+      const { signature } = await signMessage(msgHash);
       setSigResult(signature);
     } catch (err) {
       setSigError(err instanceof Error ? err.message : 'Signing failed');
@@ -65,7 +64,7 @@ export default function App() {
               </p>
             </div>
 
-            {/* Sign test -- only for social/email users who have Shamir keys */}
+            {/* Sign test -- only for social/email users who have a server-managed key */}
             {user.loginMethod !== 'wallet' && user.evmAddress && (
               <div className="space-y-3">
                 <button
@@ -88,7 +87,7 @@ export default function App() {
                   <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg space-y-1">
                     <p className="text-green-400 text-xs font-medium">Signature (secp256k1):</p>
                     <p className="font-mono text-xs text-green-300 break-all">{sigResult}</p>
-                    <p className="text-gray-500 text-xs">SSS reconstruction + signing: OK</p>
+                    <p className="text-gray-500 text-xs">Seamless key signing: OK</p>
                   </div>
                 )}
 

@@ -1,7 +1,7 @@
 /**
  * HTTP client for AuthVault backend API.
  */
-import type { AuthResponse, EmailStartResponse, NonceResponse, ServerShareResponse, AuthVaultError, HealthResponse } from '@authvault/types';
+import type { AuthResponse, EmailStartResponse, NonceResponse, AuthVaultError, HealthResponse } from '@authvault/types';
 
 export class AuthVaultClient {
   private baseUrl: string;
@@ -45,20 +45,43 @@ export class AuthVaultClient {
     await this.delete('/api/auth');
   }
 
-  // -- Key endpoints --
+  // -- Key endpoints (seamless mode) --
 
+  /**
+   * Ask the server to generate (or confirm) the user's wallet key.
+   * Idempotent: safe to call on every login.
+   */
+  async generateKey(): Promise<{ success: boolean; evmAddress: string }> {
+    return this.post('/api/keys/generate', {});
+  }
+
+  /**
+   * Retrieve the private key sealed for this device.
+   * @param clientPublicKey - hex-encoded X25519 public key (32 bytes = 64 hex chars)
+   */
+  async deviceInit(clientPublicKey: string): Promise<{ encryptedKey: string }> {
+    return this.post('/api/keys/device-init', { clientPublicKey });
+  }
+
+  // -- Legacy SSS key methods (sovereign mode, not used by default) --
+  // These methods reference backend routes that are no longer registered in seamless mode.
+  // Kept for future `mode: 'sovereign'` SaaS use; calling them will return 404.
+
+  /** @deprecated Use generateKey() instead (seamless mode). */
   async storeShares(data: {
     encryptedShares: { server: { ciphertext: string; nonce: string }; recovery: { ciphertext: string; nonce: string } };
     publicKeys: { evm?: string; solana?: string };
     curve?: string;
   }): Promise<{ success: boolean }> {
-    return this.post('/api/keys/generate', data);
+    return this.post('/api/keys/generate-sss', data);
   }
 
-  async getServerShare(curve = 'secp256k1'): Promise<ServerShareResponse> {
+  /** @deprecated Not available in seamless mode. */
+  async getServerShare(curve = 'secp256k1'): Promise<{ encryptedShare: string; nonce: string }> {
     return this.get(`/api/keys/server-share?curve=${curve}`);
   }
 
+  /** @deprecated Not available in seamless mode. */
   async storeRecoveryBundle(data: {
     curve?: string;
     kdfSalt: string;
@@ -68,10 +91,12 @@ export class AuthVaultClient {
     return this.post('/api/keys/recovery-bundle', data);
   }
 
+  /** @deprecated Not available in seamless mode. */
   async getRecoveryBundle(curve = 'secp256k1'): Promise<{ kdfSalt: string; ciphertext: string; nonce: string }> {
     return this.get(`/api/keys/recovery-bundle?curve=${curve}`);
   }
 
+  /** @deprecated Not available in seamless mode. */
   async updateServerShareAfterRecovery(data: {
     curve?: string;
     encryptedServerShare: { ciphertext: string; nonce: string };

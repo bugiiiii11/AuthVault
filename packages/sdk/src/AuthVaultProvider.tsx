@@ -3,8 +3,20 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { AuthState, AuthUser, AuthResponse } from '@authvault/types';
 import { AuthVaultClient } from './core/client';
 import { loadSession, loadUser, saveSession, saveUser, clearSession, getDeviceId } from './core/session';
-import { generateAndDistributeKeys, setupRecoveryBundle, recoverWithPassword } from './core/keyManager';
-import { getOrCreateEncryptionKey, hasDeviceShare } from './core/deviceShare';
+import { getOrCreateEncryptionKey } from './core/deviceShare';
+import { storePrivateKey, hasPrivateKey } from './core/privateKeyStore';
+
+// libsodium loaded dynamically (same pattern as encryption.ts)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _sodium: any;
+async function getSodium() {
+  if (!_sodium) {
+    const mod = await import('libsodium-wrappers');
+    _sodium = mod.default || mod;
+    await _sodium.ready;
+  }
+  return _sodium;
+}
 
 export interface AuthVaultConfig {
   backendUrl: string;
@@ -23,13 +35,6 @@ export interface AuthVaultContextValue {
   deviceId: string;
   supabaseClient: SupabaseClient | null;
   handleAuthResponse: (res: AuthResponse) => Promise<void>;
-  // Recovery
-  needsRecoverySetup: boolean;
-  needsRecovery: boolean;
-  setupRecovery: (password: string) => Promise<void>;
-  completeRecovery: (password: string) => Promise<void>;
-  dismissRecoverySetup: () => void;
-  resetKeys: () => Promise<void>;
 }
 
 const AuthVaultContext = createContext<AuthVaultContextValue | null>(null);
@@ -65,12 +70,6 @@ export function AuthVaultProvider({
     session: null,
   });
 
-  // Recovery state
-  const [needsRecoverySetup, setNeedsRecoverySetup] = useState(false);
-  const [needsRecovery, setNeedsRecovery] = useState(false);
-  // Kept in memory only while the user is setting up recovery (zeroed after use)
-  const [pendingEncKey, setPendingEncKey] = useState<Uint8Array | null>(null);
-
   const client = useMemo(() => new AuthVaultClient(backendUrl), [backendUrl]);
   const deviceId = useMemo(() => getDeviceId(), []);
 
@@ -85,8 +84,50 @@ export function AuthVaultProvider({
   }, [supabaseUrl, supabaseAnonKey]);
 
   /**
+   * Ensure the private key is stored in IndexedDB for this user.
+   * Called on every social/email login and on hydration if key is missing.
+   *
+   * Steps:
+   *   1. Call POST /api/keys/generate  -- idempotent, ensures key exists in Vault.
+   *   2. Call POST /api/keys/device-init with an ephemeral X25519 pubkey.
+   *   3. Unseal the response with the X25519 private key (libsodium crypto_box_seal_open).
+   *   4. Re-encrypt and store in IndexedDB.
+   */
+  const ensureLocalKey = useCallback(async (userId: string): Promise<string | null> => {
+    try {
+      // Step 1: ensure key exists server-side, get EVM address
+      const { evmAddress } = await client.generateKey();
+
+      // Step 2: generate ephemeral X25519 keypair
+      const sodium = await getSodium();
+      const ephemeral = sodium.crypto_box_keypair();
+      const pubKeyHex = sodium.to_hex(ephemeral.publicKey);
+
+      // Step 3: get sealed private key from server
+      const { encryptedKey } = await client.deviceInit(pubKeyHex);
+
+      // Step 4: unseal
+      const sealedBytes = sodium.from_hex(encryptedKey);
+      const privateKeyBytes = sodium.crypto_box_seal_open(
+        sealedBytes,
+        ephemeral.publicKey,
+        ephemeral.privateKey,
+      );
+
+      if (!privateKeyBytes) throw new Error('Failed to unseal private key');
+
+      // Step 5: store encrypted in IndexedDB
+      await storePrivateKey(userId, 'secp256k1', privateKeyBytes);
+
+      return evmAddress;
+    } catch (err) {
+      console.error('ensureLocalKey failed:', err);
+      return null;
+    }
+  }, [client]);
+
+  /**
    * Central post-auth handler used by all login methods.
-   * Saves session, updates state, and triggers key generation or recovery prompt.
    */
   const handleAuthResponse = useCallback(async (res: AuthResponse) => {
     client.setToken(res.session.token);
@@ -94,107 +135,20 @@ export function AuthVaultProvider({
     saveUser(res.user);
     setState({ status: 'authenticated', user: res.user, session: res.session });
 
+    // Wallet users manage their own keys -- nothing to do
     if (res.user.loginMethod === 'wallet') return;
 
-    if (res.isNew) {
-      // First login -- generate Shamir SSS keys and prompt for recovery setup
-      try {
-        const encKey = await getOrCreateEncryptionKey(res.user.id);
-        const { evmAddress } = await generateAndDistributeKeys(client, res.user.id, encKey);
-        const updatedUser = { ...res.user, evmAddress };
-        saveUser(updatedUser);
-        setState(prev => ({ ...prev, user: updatedUser }));
-        // Keep enc key in memory for recovery setup
-        setPendingEncKey(encKey);
-        setNeedsRecoverySetup(true);
-      } catch (err) {
-        console.error('Key generation failed (non-fatal):', err);
-      }
-    } else {
-      // Returning user -- check if device share is present
-      const hasShare = await hasDeviceShare(res.user.id, 'secp256k1');
-      if (!hasShare) {
-        setNeedsRecovery(true);
-      } else {
-        // Device share present -- verify server share also exists in DB.
-        // If missing (e.g. DB reset / migration), regenerate keys silently.
-        try {
-          await client.getServerShare('secp256k1');
-        } catch {
-          try {
-            const encKey = await getOrCreateEncryptionKey(res.user.id);
-            const { evmAddress } = await generateAndDistributeKeys(client, res.user.id, encKey);
-            const updatedUser = { ...res.user, evmAddress };
-            saveUser(updatedUser);
-            setState(prev => ({ ...prev, user: updatedUser }));
-            setPendingEncKey(encKey);
-            setNeedsRecoverySetup(true);
-          } catch (regenErr) {
-            console.error('Key regeneration failed:', regenErr);
-          }
-        }
-      }
+    const alreadyHasKey = await hasPrivateKey(res.user.id, 'secp256k1');
+    if (alreadyHasKey) return;
+
+    // New device or first login: fetch key from server
+    const evmAddress = await ensureLocalKey(res.user.id);
+    if (evmAddress) {
+      const updatedUser = { ...res.user, evmAddress };
+      saveUser(updatedUser);
+      setState(prev => ({ ...prev, user: updatedUser }));
     }
-  }, [client]);
-
-  /**
-   * Complete the recovery setup step: build and upload the password-encrypted bundle.
-   */
-  const setupRecovery = useCallback(async (password: string) => {
-    const user = loadUser<AuthUser>();
-    if (!user) throw new Error('No user session');
-
-    const encKey = pendingEncKey ?? await getOrCreateEncryptionKey(user.id);
-    await setupRecoveryBundle(client, user.id, encKey, password);
-
-    setPendingEncKey(null);
-    setNeedsRecoverySetup(false);
-  }, [client, pendingEncKey]);
-
-  /**
-   * Dismiss the recovery setup prompt without setting a password.
-   * The user can set up recovery later.
-   */
-  const dismissRecoverySetup = useCallback(() => {
-    setPendingEncKey(null);
-    setNeedsRecoverySetup(false);
-  }, []);
-
-  /**
-   * Generate fresh keys for the current user, discarding the old wallet.
-   * Used when the recovery bundle is unavailable (e.g. DB reset) and the
-   * user cannot recover their old address.
-   */
-  const resetKeys = useCallback(async () => {
-    const user = loadUser<AuthUser>();
-    if (!user || user.loginMethod === 'wallet') return;
-
-    const encKey = await getOrCreateEncryptionKey(user.id);
-    const { evmAddress } = await generateAndDistributeKeys(client, user.id, encKey);
-    const updatedUser = { ...user, evmAddress };
-    saveUser(updatedUser);
-    setState(prev => ({ ...prev, user: updatedUser }));
-    setPendingEncKey(encKey);
-    setNeedsRecovery(false);
-    setNeedsRecoverySetup(true);
-  }, [client]);
-
-  /**
-   * Complete account recovery on a new device using the recovery password.
-   * The user must already be authenticated (JWT in place) before calling this.
-   */
-  const completeRecovery = useCallback(async (password: string) => {
-    const user = loadUser<AuthUser>();
-    if (!user) throw new Error('No user session');
-
-    const newDeviceEncKey = await getOrCreateEncryptionKey(user.id);
-    const { evmAddress } = await recoverWithPassword(client, user.id, newDeviceEncKey, password);
-
-    const updatedUser = { ...user, evmAddress };
-    saveUser(updatedUser);
-    setState(prev => ({ ...prev, user: updatedUser }));
-    setNeedsRecovery(false);
-  }, [client]);
+  }, [client, ensureLocalKey]);
 
   // Hydrate session from localStorage on mount
   useEffect(() => {
@@ -221,27 +175,15 @@ export function AuthVaultProvider({
             session: { token: session.token, expiresAt: session.expiresAt, deviceId: session.deviceId },
           });
 
-          // For social/email users, verify server share exists.
-          // If missing (e.g. DB reset), regenerate keys silently so signing works.
+          // For social/email users: ensure private key is in IndexedDB
           if (user.loginMethod !== 'wallet') {
-            const hasShare = await hasDeviceShare(user.id, 'secp256k1');
-            if (!hasShare) {
-              setNeedsRecovery(true);
-            } else {
-              try {
-                await client.getServerShare('secp256k1');
-              } catch {
-                try {
-                  const encKey = await getOrCreateEncryptionKey(user.id);
-                  const { evmAddress } = await generateAndDistributeKeys(client, user.id, encKey);
-                  const updatedUser = { ...user, evmAddress };
-                  saveUser(updatedUser);
-                  setState(prev => ({ ...prev, user: updatedUser }));
-                  setPendingEncKey(encKey);
-                  setNeedsRecoverySetup(true);
-                } catch (regenErr) {
-                  console.error('Key regeneration on hydration failed:', regenErr);
-                }
+            const hasKey = await hasPrivateKey(user.id, 'secp256k1');
+            if (!hasKey) {
+              const evmAddress = await ensureLocalKey(user.id);
+              if (evmAddress) {
+                const updatedUser = { ...user, evmAddress };
+                saveUser(updatedUser);
+                setState(prev => ({ ...prev, user: updatedUser }));
               }
             }
           }
@@ -254,7 +196,7 @@ export function AuthVaultProvider({
     } else {
       setState({ status: 'unauthenticated', user: null, session: null });
     }
-  }, [client]);
+  }, [client, ensureLocalKey]);
 
   // Handle Google OAuth redirect callback via Supabase onAuthStateChange
   useEffect(() => {
@@ -291,12 +233,6 @@ export function AuthVaultProvider({
       deviceId,
       supabaseClient,
       handleAuthResponse,
-      needsRecoverySetup,
-      needsRecovery,
-      setupRecovery,
-      completeRecovery,
-      dismissRecoverySetup,
-      resetKeys,
     }}>
       {children}
     </AuthVaultContext.Provider>

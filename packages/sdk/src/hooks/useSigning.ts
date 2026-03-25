@@ -1,13 +1,15 @@
 /**
- * useSigning hook -- reconstructs key from shares and signs transactions.
- * For MVP: signing happens on main thread (20-40ms, invisible to user).
- * v1.1: Move to Web Worker for additional isolation.
+ * useSigning hook -- signs transactions and messages using the user's private key.
+ *
+ * Seamless mode: the private key is retrieved from IndexedDB (stored during device-init),
+ * decrypted with the user's local encryption key, used to sign, then zeroed from memory.
+ *
+ * No SSS reconstruction needed -- the server already assembled the key during device-init.
  */
 import { useCallback } from 'react';
 import { useAuthVaultContext } from '../AuthVaultProvider';
-import { getDeviceShare } from '../core/deviceShare';
-import { decrypt } from '../crypto/encryption';
-import { combine, zeroBytes } from '../crypto/shamir';
+import { getPrivateKey } from '../core/privateKeyStore';
+import { zeroBytes } from '../crypto/shamir';
 import { secp256k1 } from '@noble/curves/secp256k1';
 
 interface SignResult {
@@ -19,47 +21,22 @@ interface SignMessageResult {
 }
 
 export function useSigning() {
-  const { state, client } = useAuthVaultContext();
+  const { state } = useAuthVaultContext();
 
-  async function getShares(encryptionKey: Uint8Array): Promise<Array<{ index: number; data: Uint8Array }>> {
+  async function loadPrivateKey(): Promise<Uint8Array> {
     if (!state.user) throw new Error('Not authenticated');
 
-    // Get device share from IndexedDB
-    const deviceShareRecord = await getDeviceShare(state.user.id, 'secp256k1');
-    if (!deviceShareRecord) {
-      throw new Error('Device share not found. Please log in again.');
+    const privateKey = await getPrivateKey(state.user.id, 'secp256k1');
+    if (!privateKey) {
+      throw new Error('Private key not found on device. Please log in again.');
     }
-
-    // Decrypt device share
-    const deviceShareData = await decrypt(
-      hexToBytes(deviceShareRecord.shareData),
-      hexToBytes(deviceShareRecord.nonce),
-      encryptionKey,
-    );
-
-    // Get server share from backend
-    const serverShareResponse = await client.getServerShare('secp256k1');
-
-    // Decrypt server share
-    const serverShareData = await decrypt(
-      hexToBytes(serverShareResponse.encryptedShare),
-      hexToBytes(serverShareResponse.nonce),
-      encryptionKey,
-    );
-
-    return [
-      { index: 1, data: deviceShareData },
-      { index: 2, data: serverShareData },
-    ];
+    return privateKey;
   }
 
   const signTransaction = useCallback(async (
     txHash: Uint8Array,
-    encryptionKey: Uint8Array,
   ): Promise<SignResult> => {
-    const shares = await getShares(encryptionKey);
-    const privateKey = combine(shares);
-
+    const privateKey = await loadPrivateKey();
     try {
       const sig = secp256k1.sign(txHash, privateKey);
       return {
@@ -70,19 +47,14 @@ export function useSigning() {
         },
       };
     } finally {
-      // CRITICAL: Zero private key from memory immediately
       zeroBytes(privateKey);
-      shares.forEach(s => zeroBytes(s.data));
     }
-  }, [state.user, client]);
+  }, [state.user]);
 
   const signMessage = useCallback(async (
     messageHash: Uint8Array,
-    encryptionKey: Uint8Array,
   ): Promise<SignMessageResult> => {
-    const shares = await getShares(encryptionKey);
-    const privateKey = combine(shares);
-
+    const privateKey = await loadPrivateKey();
     try {
       const sig = secp256k1.sign(messageHash, privateKey);
       const sigHex = '0x' +
@@ -92,21 +64,12 @@ export function useSigning() {
       return { signature: sigHex };
     } finally {
       zeroBytes(privateKey);
-      shares.forEach(s => zeroBytes(s.data));
     }
-  }, [state.user, client]);
+  }, [state.user]);
 
   return {
     signTransaction,
     signMessage,
-    isSigningSupported: state.status === 'authenticated' && state.user?.loginMethod === 'social',
+    isSigningSupported: state.status === 'authenticated' && state.user?.loginMethod !== 'wallet',
   };
-}
-
-function hexToBytes(hex: string): Uint8Array {
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
-  }
-  return bytes;
 }
