@@ -114,6 +114,24 @@ export function AuthVaultProvider({
       const hasShare = await hasDeviceShare(res.user.id, 'secp256k1');
       if (!hasShare) {
         setNeedsRecovery(true);
+      } else {
+        // Device share present -- verify server share also exists in DB.
+        // If missing (e.g. DB reset / migration), regenerate keys silently.
+        try {
+          await client.getServerShare('secp256k1');
+        } catch {
+          try {
+            const encKey = await getOrCreateEncryptionKey(res.user.id);
+            const { evmAddress } = await generateAndDistributeKeys(client, res.user.id, encKey);
+            const updatedUser = { ...res.user, evmAddress };
+            saveUser(updatedUser);
+            setState(prev => ({ ...prev, user: updatedUser }));
+            setPendingEncKey(encKey);
+            setNeedsRecoverySetup(true);
+          } catch (regenErr) {
+            console.error('Key regeneration failed:', regenErr);
+          }
+        }
       }
     }
   }, [client]);
@@ -175,13 +193,38 @@ export function AuthVaultProvider({
 
       // Verify session is still valid with backend
       client.getMe()
-        .then(({ user }) => {
+        .then(async ({ user }) => {
           saveUser(user);
           setState({
             status: 'authenticated',
             user,
             session: { token: session.token, expiresAt: session.expiresAt, deviceId: session.deviceId },
           });
+
+          // For social/email users, verify server share exists.
+          // If missing (e.g. DB reset), regenerate keys silently so signing works.
+          if (user.loginMethod !== 'wallet') {
+            const hasShare = await hasDeviceShare(user.id, 'secp256k1');
+            if (!hasShare) {
+              setNeedsRecovery(true);
+            } else {
+              try {
+                await client.getServerShare('secp256k1');
+              } catch {
+                try {
+                  const encKey = await getOrCreateEncryptionKey(user.id);
+                  const { evmAddress } = await generateAndDistributeKeys(client, user.id, encKey);
+                  const updatedUser = { ...user, evmAddress };
+                  saveUser(updatedUser);
+                  setState(prev => ({ ...prev, user: updatedUser }));
+                  setPendingEncKey(encKey);
+                  setNeedsRecoverySetup(true);
+                } catch (regenErr) {
+                  console.error('Key regeneration on hydration failed:', regenErr);
+                }
+              }
+            }
+          }
         })
         .catch(() => {
           clearSession();
