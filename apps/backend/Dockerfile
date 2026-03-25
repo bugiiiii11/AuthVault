@@ -17,14 +17,17 @@ COPY tsconfig.base.json ./
 RUN pnpm --filter @authvault/types build
 RUN pnpm --filter @authvault/backend build
 
-# Production
-FROM node:20-alpine AS runner
+# Production - fresh prod install so pnpm virtual store is intact
+FROM base AS runner
 WORKDIR /app
-COPY --from=build /app/apps/backend/dist ./dist
-COPY --from=build /app/apps/backend/package.json ./
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/apps/backend/node_modules ./node_modules
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY packages/types/package.json ./packages/types/
+COPY apps/backend/package.json ./apps/backend/
+RUN pnpm install --frozen-lockfile --prod
+COPY --from=build /app/packages/types/dist ./packages/types/dist
+COPY --from=build /app/apps/backend/dist ./apps/backend/dist
 
+WORKDIR /app/apps/backend
 EXPOSE 3001
 ENV PORT=3001
 CMD ["node", "dist/index.js"]
