@@ -20,7 +20,7 @@ interface LoginOptions {
 }
 
 export function useAuth(): UseAuthReturn {
-  const { client, state, setState, deviceId, handleAuthResponse } = useAuthVaultContext();
+  const { client, state, setState, deviceId, handleAuthResponse, supabaseClient } = useAuthVaultContext();
   const [error, setError] = useState<string | null>(null);
 
   const login = useCallback(async (provider: OAuthProvider, options?: LoginOptions) => {
@@ -94,11 +94,17 @@ export function useAuth(): UseAuthReturn {
     } catch {
       // Ignore logout API errors -- still clear local state
     }
+    // Must sign out from Supabase too, otherwise the Google Supabase session
+    // persists and the onAuthStateChange listener re-authenticates automatically
+    // on the next page load, overwriting any email/other login attempt.
+    if (supabaseClient) {
+      try { await supabaseClient.auth.signOut(); } catch { /* non-fatal */ }
+    }
     client.setToken(null);
     clearSession();
     setState({ status: 'unauthenticated', user: null, session: null });
     setError(null);
-  }, [client, setState]);
+  }, [client, supabaseClient, setState]);
 
   return {
     status: state.status,
