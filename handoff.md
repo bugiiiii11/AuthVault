@@ -7,6 +7,32 @@
 | 1 | 2026-03-25 | MVP build | Full auth system: crypto, backend, SDK, connectors, signing |
 | 2 | 2026-03-25 | Deployment + Email OTP | Backend on Railway, demo on Vercel, Email OTP working end-to-end |
 | 3 | 2026-03-25 | Google + MetaMask + key generation | All login methods wired and tested live |
+| 4 | 2026-03-25 | Recovery flow + BYTEA fix | WalletConnect working, full account recovery system, BYTEA→TEXT DB fix |
+
+## What Was Done (Session 4) -- Recovery Flow + BYTEA Fix
+
+1. **WalletConnect domain whitelist fixed** -- User added `auth-vault-demo.vercel.app` to WalletConnect Cloud allowed domains. QR modal now works and was tested successfully with Trust Wallet. Priority 1 is done.
+
+2. **Recovery flow built** -- Full account recovery system implemented:
+   - `supabase/migrations/005_create_recovery_bundles.sql` -- `recovery_bundles` table + `wallet_users.recovery_configured` column
+   - `packages/sdk/src/crypto/pbkdf2.ts` -- PBKDF2-SHA-256 key derivation via Web Crypto API
+   - `apps/backend/src/routes/keys/recovery.ts` -- 3 new routes: `POST /api/keys/recovery-bundle`, `GET /api/keys/recovery-bundle`, `POST /api/keys/recover`
+   - `packages/sdk/src/core/keyManager.ts` -- `setupRecoveryBundle` + complete `recoverWithPassword`
+   - `packages/sdk/src/core/client.ts` -- `storeRecoveryBundle`, `getRecoveryBundle`, `updateServerShareAfterRecovery`
+   - `packages/sdk/src/AuthVaultProvider.tsx` -- `needsRecoverySetup`, `needsRecovery`, `setupRecovery`, `completeRecovery`, `dismissRecoverySetup` added to context
+   - `packages/sdk/src/components/LoginModal.tsx` -- two new views: `recovery-setup` (set password after first login) and `recovery-password` (enter password on new device)
+   - Committed: 161d090
+
+3. **Sign-message test added to demo** -- "Test: Sign Message" button in `apps/demo/src/App.tsx`. Gets encryption key from IndexedDB, hashes a test message with SHA-256, signs with secp256k1 via SSS reconstruction, displays signature. Exported `getOrCreateEncryptionKey` from SDK index. Committed: 4b4f209
+
+4. **BYTEA to TEXT fix** -- PostgREST returns BYTEA columns as base64 strings in JSON, which broke the nonce hex round-trip ("invalid public_nonce length" error). Fixed by:
+   - `supabase/migrations/006_key_shares_bytea_to_text.sql` -- alter `key_shares.encrypted_share` and `key_shares.encryption_nonce` from BYTEA to TEXT; truncate stale test data
+   - `apps/backend/src/routes/keys/generate.ts` -- store/return hex strings directly (no more hexToBytes/bytesToHex on DB values)
+   - `apps/backend/src/routes/keys/recovery.ts` -- same fix for recover endpoint
+   - Applied to Supabase live DB
+   - Committed: 1c8be0a, eb0c0e0
+
+**Commits this session:** 161d090, 4b4f209, 1c8be0a, eb0c0e0
 
 ## What Was Done (Session 3) -- Google + MetaMask + Key Generation
 
@@ -51,16 +77,15 @@
 
 ## Known Issues
 
-- **WalletConnect QR blank** -- `pulse.walletconnect.org` returns 403 (origin not allowed). Fix: add `auth-vault-demo.vercel.app` to allowed domains in WalletConnect Cloud dashboard (cloud.walletconnect.com → project → Settings → Allowed Domains).
+None outstanding. WalletConnect domain whitelist resolved in session 4.
 
 ## What To Do Next
 
 | Priority | Task | Details |
 |----------|------|---------|
-| 1 | Fix WalletConnect domain whitelist | WalletConnect Cloud → project → Settings → add `auth-vault-demo.vercel.app` |
-| 2 | Recovery flow | Add recovery share retrieval endpoint, password-based recovery UI |
-| 3 | Web Worker signing | Move SSS reconstruction to Web Worker for non-blocking signing (v1.1) |
-| 4 | Integrate into Swarm Resistance | Replace Web3Auth with `@authvault/sdk` in game frontend |
+| 1 | Test recovery flow end-to-end | Login → set recovery password → logout → clear IndexedDB → login again → enter password → verify wallet address is same |
+| 2 | Web Worker signing | Move SSS reconstruction to Web Worker for non-blocking signing (v1.1) |
+| 3 | Integrate into Swarm Resistance | Replace Web3Auth with `@authvault/sdk` in game frontend |
 
 ## Deployment Env Vars
 
@@ -84,15 +109,16 @@ VITE_WALLETCONNECT_PROJECT_ID
 
 | File | Purpose |
 |------|---------|
-| `packages/sdk/src/crypto/` | Shamir SSS, encryption, keygen (33 tests) |
-| `packages/sdk/src/core/` | HTTP client, device share, session, key manager |
+| `packages/sdk/src/crypto/` | Shamir SSS, encryption, keygen, PBKDF2 (33 tests) |
+| `packages/sdk/src/core/` | HTTP client, device share, session, key manager, recovery |
 | `packages/sdk/src/hooks/` | useAuth, useWallet, useSigning |
 | `packages/sdk/src/connectors/` | MetaMask, WalletConnect, Coinbase |
-| `packages/sdk/src/components/LoginModal.tsx` | Auth modal -- all methods wired |
-| `packages/sdk/src/AuthVaultProvider.tsx` | Provider -- Supabase client, handleAuthResponse, key gen |
-| `apps/backend/src/routes/` | Auth (google, email, siwe, session) + keys |
+| `packages/sdk/src/components/LoginModal.tsx` | Auth modal -- all methods + recovery-setup + recovery-password views |
+| `packages/sdk/src/AuthVaultProvider.tsx` | Provider -- Supabase client, handleAuthResponse, key gen, recovery state |
+| `apps/backend/src/routes/` | Auth (google, email, siwe, session) + keys (generate, recovery) |
 | `apps/backend/src/services/emailOtp.ts` | OTP send (admin client) + verify (anon client) |
 | `apps/backend/src/middleware/` | JWT auth, rate limiting |
 | `apps/backend/Dockerfile` | Production Docker build (fresh pnpm install in runner) |
 | `apps/demo/src/main.tsx` | Demo entry -- AuthVaultProvider with all env vars |
-| `supabase/migrations/` | 4 SQL files (applied) |
+| `apps/demo/src/App.tsx` | Demo app -- login UI + sign-message test button |
+| `supabase/migrations/` | 6 SQL files (applied) |
