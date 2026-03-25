@@ -3,8 +3,8 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { AuthState, AuthUser, AuthResponse } from '@authvault/types';
 import { AuthVaultClient } from './core/client';
 import { loadSession, loadUser, saveSession, saveUser, clearSession, getDeviceId } from './core/session';
-import { generateAndDistributeKeys } from './core/keyManager';
-import { getOrCreateEncryptionKey } from './core/deviceShare';
+import { generateAndDistributeKeys, setupRecoveryBundle, recoverWithPassword } from './core/keyManager';
+import { getOrCreateEncryptionKey, hasDeviceShare } from './core/deviceShare';
 
 export interface AuthVaultConfig {
   backendUrl: string;
@@ -23,6 +23,12 @@ export interface AuthVaultContextValue {
   deviceId: string;
   supabaseClient: SupabaseClient | null;
   handleAuthResponse: (res: AuthResponse) => Promise<void>;
+  // Recovery
+  needsRecoverySetup: boolean;
+  needsRecovery: boolean;
+  setupRecovery: (password: string) => Promise<void>;
+  completeRecovery: (password: string) => Promise<void>;
+  dismissRecoverySetup: () => void;
 }
 
 const AuthVaultContext = createContext<AuthVaultContextValue | null>(null);
@@ -58,6 +64,12 @@ export function AuthVaultProvider({
     session: null,
   });
 
+  // Recovery state
+  const [needsRecoverySetup, setNeedsRecoverySetup] = useState(false);
+  const [needsRecovery, setNeedsRecovery] = useState(false);
+  // Kept in memory only while the user is setting up recovery (zeroed after use)
+  const [pendingEncKey, setPendingEncKey] = useState<Uint8Array | null>(null);
+
   const client = useMemo(() => new AuthVaultClient(backendUrl), [backendUrl]);
   const deviceId = useMemo(() => getDeviceId(), []);
 
@@ -73,7 +85,7 @@ export function AuthVaultProvider({
 
   /**
    * Central post-auth handler used by all login methods.
-   * Saves session, updates state, and generates keys for new social/email users.
+   * Saves session, updates state, and triggers key generation or recovery prompt.
    */
   const handleAuthResponse = useCallback(async (res: AuthResponse) => {
     client.setToken(res.session.token);
@@ -81,18 +93,69 @@ export function AuthVaultProvider({
     saveUser(res.user);
     setState({ status: 'authenticated', user: res.user, session: res.session });
 
-    // Generate Shamir SSS keys for new social/email users (wallet users have their own address)
-    if (res.isNew && res.user.loginMethod !== 'wallet') {
+    if (res.user.loginMethod === 'wallet') return;
+
+    if (res.isNew) {
+      // First login -- generate Shamir SSS keys and prompt for recovery setup
       try {
         const encKey = await getOrCreateEncryptionKey(res.user.id);
         const { evmAddress } = await generateAndDistributeKeys(client, res.user.id, encKey);
         const updatedUser = { ...res.user, evmAddress };
         saveUser(updatedUser);
         setState(prev => ({ ...prev, user: updatedUser }));
+        // Keep enc key in memory for recovery setup
+        setPendingEncKey(encKey);
+        setNeedsRecoverySetup(true);
       } catch (err) {
         console.error('Key generation failed (non-fatal):', err);
       }
+    } else {
+      // Returning user -- check if device share is present
+      const hasShare = await hasDeviceShare(res.user.id, 'secp256k1');
+      if (!hasShare) {
+        setNeedsRecovery(true);
+      }
     }
+  }, [client]);
+
+  /**
+   * Complete the recovery setup step: build and upload the password-encrypted bundle.
+   */
+  const setupRecovery = useCallback(async (password: string) => {
+    const user = loadUser<AuthUser>();
+    if (!user) throw new Error('No user session');
+
+    const encKey = pendingEncKey ?? await getOrCreateEncryptionKey(user.id);
+    await setupRecoveryBundle(client, user.id, encKey, password);
+
+    setPendingEncKey(null);
+    setNeedsRecoverySetup(false);
+  }, [client, pendingEncKey]);
+
+  /**
+   * Dismiss the recovery setup prompt without setting a password.
+   * The user can set up recovery later.
+   */
+  const dismissRecoverySetup = useCallback(() => {
+    setPendingEncKey(null);
+    setNeedsRecoverySetup(false);
+  }, []);
+
+  /**
+   * Complete account recovery on a new device using the recovery password.
+   * The user must already be authenticated (JWT in place) before calling this.
+   */
+  const completeRecovery = useCallback(async (password: string) => {
+    const user = loadUser<AuthUser>();
+    if (!user) throw new Error('No user session');
+
+    const newDeviceEncKey = await getOrCreateEncryptionKey(user.id);
+    const { evmAddress } = await recoverWithPassword(client, user.id, newDeviceEncKey, password);
+
+    const updatedUser = { ...user, evmAddress };
+    saveUser(updatedUser);
+    setState(prev => ({ ...prev, user: updatedUser }));
+    setNeedsRecovery(false);
   }, [client]);
 
   // Hydrate session from localStorage on mount
@@ -157,7 +220,20 @@ export function AuthVaultProvider({
   }, [supabaseClient, client, deviceId, handleAuthResponse]);
 
   return (
-    <AuthVaultContext.Provider value={{ config, client, state, setState, deviceId, supabaseClient, handleAuthResponse }}>
+    <AuthVaultContext.Provider value={{
+      config,
+      client,
+      state,
+      setState,
+      deviceId,
+      supabaseClient,
+      handleAuthResponse,
+      needsRecoverySetup,
+      needsRecovery,
+      setupRecovery,
+      completeRecovery,
+      dismissRecoverySetup,
+    }}>
       {children}
     </AuthVaultContext.Provider>
   );

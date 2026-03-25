@@ -59,6 +59,26 @@ export class AuthVaultClient {
     return this.get(`/api/keys/server-share?curve=${curve}`);
   }
 
+  async storeRecoveryBundle(data: {
+    curve?: string;
+    kdfSalt: string;
+    ciphertext: string;
+    nonce: string;
+  }): Promise<{ success: boolean }> {
+    return this.post('/api/keys/recovery-bundle', data);
+  }
+
+  async getRecoveryBundle(curve = 'secp256k1'): Promise<{ kdfSalt: string; ciphertext: string; nonce: string }> {
+    return this.get(`/api/keys/recovery-bundle?curve=${curve}`);
+  }
+
+  async updateServerShareAfterRecovery(data: {
+    curve?: string;
+    encryptedServerShare: { ciphertext: string; nonce: string };
+  }): Promise<{ success: boolean }> {
+    return this.post('/api/keys/recover', data);
+  }
+
   // -- Health --
 
   async health(): Promise<HealthResponse> {

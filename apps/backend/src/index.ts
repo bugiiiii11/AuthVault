@@ -8,6 +8,7 @@ import emailAuth from './routes/auth/email';
 import siweAuth from './routes/auth/siwe';
 import sessionRoutes from './routes/auth/session';
 import keyRoutes from './routes/keys/generate';
+import recoveryRoutes from './routes/keys/recovery';
 
 const app = new Hono();
 
@@ -30,6 +31,7 @@ app.route('/api/auth', sessionRoutes);
 
 // Key management routes
 app.route('/api/keys', keyRoutes);
+app.route('/api/keys', recoveryRoutes);
 
 // Global error handler
 app.onError((err, c) => {

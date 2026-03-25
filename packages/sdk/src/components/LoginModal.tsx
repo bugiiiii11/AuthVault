@@ -8,7 +8,7 @@ import { useWallet } from '../hooks/useWallet';
 import { useAuthVaultContext } from '../AuthVaultProvider';
 import type { WalletProvider } from '@authvault/types';
 
-type LoginView = 'main' | 'email-input' | 'email-verify' | 'wallet-select' | 'wallet-connecting';
+type LoginView = 'main' | 'email-input' | 'email-verify' | 'wallet-select' | 'wallet-connecting' | 'recovery-setup' | 'recovery-password';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -32,12 +32,23 @@ export function LoginModal({
 }: LoginModalProps) {
   const { status, user, error, sendEmailCode, verifyEmailCode } = useAuth();
   const { connect, isConnecting, error: walletError } = useWallet();
-  const { supabaseClient } = useAuthVaultContext();
+  const {
+    supabaseClient,
+    needsRecoverySetup,
+    needsRecovery,
+    setupRecovery,
+    completeRecovery,
+    dismissRecoverySetup,
+  } = useAuthVaultContext();
   const [view, setView] = useState<LoginView>('main');
   const [email, setEmail] = useState('');
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [emailSent, setEmailSent] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
+  const [recoveryPassword, setRecoveryPassword] = useState('');
+  const [recoveryConfirm, setRecoveryConfirm] = useState('');
+  const [recoveryError, setRecoveryError] = useState('');
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -63,6 +74,15 @@ export function LoginModal({
     }
   }, [status, user, onSuccess]);
 
+  // Auto-switch to recovery views when provider signals them
+  useEffect(() => {
+    if (needsRecoverySetup && isOpen) setView('recovery-setup');
+  }, [needsRecoverySetup, isOpen]);
+
+  useEffect(() => {
+    if (needsRecovery && isOpen) setView('recovery-password');
+  }, [needsRecovery, isOpen]);
+
   // Reset on close
   useEffect(() => {
     if (!isOpen) {
@@ -70,6 +90,9 @@ export function LoginModal({
       setEmail('');
       setOtpDigits(['', '', '', '', '', '']);
       setEmailSent(false);
+      setRecoveryPassword('');
+      setRecoveryConfirm('');
+      setRecoveryError('');
     }
   }, [isOpen]);
 
@@ -124,6 +147,48 @@ export function LoginModal({
       inputRefs.current[index - 1]?.focus();
     }
   }, [otpDigits]);
+
+  const handleRecoverySetup = useCallback(async () => {
+    setRecoveryError('');
+    if (recoveryPassword.length < 10) {
+      setRecoveryError('Password must be at least 10 characters.');
+      return;
+    }
+    if (recoveryPassword !== recoveryConfirm) {
+      setRecoveryError('Passwords do not match.');
+      return;
+    }
+    setRecoveryLoading(true);
+    try {
+      await setupRecovery(recoveryPassword);
+      setRecoveryPassword('');
+      setRecoveryConfirm('');
+      onClose();
+    } catch (err) {
+      setRecoveryError('Failed to save recovery password. Please try again.');
+      console.error('Recovery setup error:', err);
+    } finally {
+      setRecoveryLoading(false);
+    }
+  }, [recoveryPassword, recoveryConfirm, setupRecovery, onClose]);
+
+  const handleRecoveryPassword = useCallback(async () => {
+    setRecoveryError('');
+    if (!recoveryPassword) {
+      setRecoveryError('Enter your recovery password.');
+      return;
+    }
+    setRecoveryLoading(true);
+    try {
+      await completeRecovery(recoveryPassword);
+      setRecoveryPassword('');
+      onClose();
+    } catch {
+      setRecoveryError('Wrong password or recovery not set up. Check your password and try again.');
+    } finally {
+      setRecoveryLoading(false);
+    }
+  }, [recoveryPassword, completeRecovery, onClose]);
 
   const handleOtpPaste = useCallback((e: React.ClipboardEvent) => {
     e.preventDefault();
@@ -333,6 +398,100 @@ export function LoginModal({
                   <Spinner />
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Recovery setup view -- set password after first login */}
+          {view === 'recovery-setup' && (
+            <div className="space-y-4">
+              <div className="text-center space-y-1">
+                <p className="text-white font-medium">Set a recovery password</p>
+                <p className="text-gray-400 text-sm">
+                  If you lose this device, this password lets you recover your wallet on a new one.
+                </p>
+              </div>
+
+              {recoveryError && (
+                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm" role="alert">
+                  {recoveryError}
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <input
+                  type="password"
+                  value={recoveryPassword}
+                  onChange={(e) => setRecoveryPassword(e.target.value)}
+                  placeholder="Recovery password (min. 10 characters)"
+                  autoFocus
+                  disabled={recoveryLoading}
+                  className="w-full bg-[#0f1f38] border border-cyan-500/20 rounded-lg px-4 py-3 text-white placeholder-gray-500 min-h-[44px] focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 disabled:opacity-50"
+                />
+                <input
+                  type="password"
+                  value={recoveryConfirm}
+                  onChange={(e) => setRecoveryConfirm(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleRecoverySetup(); }}
+                  placeholder="Confirm password"
+                  disabled={recoveryLoading}
+                  className="w-full bg-[#0f1f38] border border-cyan-500/20 rounded-lg px-4 py-3 text-white placeholder-gray-500 min-h-[44px] focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 disabled:opacity-50"
+                />
+              </div>
+
+              <button
+                onClick={handleRecoverySetup}
+                disabled={recoveryLoading || !recoveryPassword || !recoveryConfirm}
+                className="w-full py-3 bg-gradient-to-r from-[#FF8C00] to-[#FFB84D] text-gray-900 rounded-lg font-bold tracking-widest uppercase min-h-[44px] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ fontFamily: 'Orbitron, monospace' }}
+              >
+                {recoveryLoading ? <Spinner /> : 'Save Recovery Password'}
+              </button>
+
+              <button
+                onClick={() => { dismissRecoverySetup(); onClose(); }}
+                disabled={recoveryLoading}
+                className="w-full text-gray-500 text-sm hover:text-gray-400 transition py-1"
+              >
+                Skip for now (not recommended)
+              </button>
+            </div>
+          )}
+
+          {/* Recovery password view -- enter password on a new device */}
+          {view === 'recovery-password' && (
+            <div className="space-y-4">
+              <div className="text-center space-y-1">
+                <p className="text-white font-medium">Recover your wallet</p>
+                <p className="text-gray-400 text-sm">
+                  No device share found. Enter your recovery password to restore access.
+                </p>
+              </div>
+
+              {recoveryError && (
+                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm" role="alert">
+                  {recoveryError}
+                </div>
+              )}
+
+              <input
+                type="password"
+                value={recoveryPassword}
+                onChange={(e) => setRecoveryPassword(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleRecoveryPassword(); }}
+                placeholder="Recovery password"
+                autoFocus
+                disabled={recoveryLoading}
+                className="w-full bg-[#0f1f38] border border-cyan-500/20 rounded-lg px-4 py-3 text-white placeholder-gray-500 min-h-[44px] focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 disabled:opacity-50"
+              />
+
+              <button
+                onClick={handleRecoveryPassword}
+                disabled={recoveryLoading || !recoveryPassword}
+                className="w-full py-3 bg-gradient-to-r from-[#FF8C00] to-[#FFB84D] text-gray-900 rounded-lg font-bold tracking-widest uppercase min-h-[44px] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ fontFamily: 'Orbitron, monospace' }}
+              >
+                {recoveryLoading ? <Spinner /> : 'Recover Wallet'}
+              </button>
             </div>
           )}
         </div>
