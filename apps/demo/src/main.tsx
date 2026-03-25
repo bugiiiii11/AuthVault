@@ -6,7 +6,7 @@ import './index.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthVaultProvider backendUrl="http://localhost:3001">
+    <AuthVaultProvider backendUrl={import.meta.env.VITE_AUTHVAULT_BACKEND_URL || 'http://localhost:3001'}>
       <App />
     </AuthVaultProvider>
   </StrictMode>,
