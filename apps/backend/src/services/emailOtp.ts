@@ -36,7 +36,7 @@ export async function verifyEmailOTP(
   const { data, error } = await adminClient.auth.verifyOtp({
     email,
     token: code,
-    type: 'email',
+    type: 'magiclink',
   });
 
   if (error || !data.session) {
