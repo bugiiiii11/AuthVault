@@ -8,6 +8,22 @@
 | 2 | 2026-03-25 | Deployment + Email OTP | Backend on Railway, demo on Vercel, Email OTP working end-to-end |
 | 3 | 2026-03-25 | Google + MetaMask + key generation | All login methods wired and tested live |
 | 4 | 2026-03-25 | Recovery flow + BYTEA fix | WalletConnect working, full account recovery system, BYTEA→TEXT DB fix |
+| 5 | 2026-03-25 | Bug fixes + architecture decision | Signing fixed, key management redesigned to server-assisted seamless mode |
+
+## What Was Done (Session 5) -- Bug Fixes + Architecture Decision
+
+1. **Signing fixed ("No server share found")** -- Migration 006 had truncated `key_shares`, leaving users with valid sessions but no server share. Fixed in two places: (a) hydration `useEffect` now verifies server share after `getMe()` succeeds and auto-regenerates keys if missing; (b) `handleAuthResponse` for returning users does the same check. Committed: dbc6ca5.
+
+2. **Recovery escape hatch added** -- When no recovery bundle exists (because it was never set up), the recovery-password modal had no way out. Added `resetKeys()` to provider context and a "Generate a new wallet instead" link in the recovery-password view. Committed: d68b77e.
+
+3. **Architecture decision: switch to server-assisted seamless key management** -- The 2-of-3 SSS + recovery password design creates friction for multi-device gaming users. Agreed to replace with server-assisted HKDF-based key storage (same model as Web3Auth default). Key points:
+   - Server derives `userKey = HKDF(master_secret || oauth_subject || "authvault-v1")` on the fly
+   - Server generates private key, double-encrypts (app-level XChaCha20 + Supabase Vault), stores in `encrypted_keys` table
+   - New device: server re-encrypts with session transport key, client caches in IndexedDB
+   - No recovery password. Any device + same Google account = same wallet
+   - Existing SSS code stays behind a `mode: 'sovereign'` flag for future SaaS use
+   - `supabase_vault` v0.3.1 confirmed installed on project `hldkdiibvsdtgxnqaaxq`
+   - Full spec: `AuthVault_MVP_Key_Management_Revision.md`
 
 ## What Was Done (Session 4) -- Recovery Flow + BYTEA Fix
 
@@ -83,9 +99,12 @@ None outstanding. WalletConnect domain whitelist resolved in session 4.
 
 | Priority | Task | Details |
 |----------|------|---------|
-| 1 | Test recovery flow end-to-end | Login → set recovery password → logout → clear IndexedDB → login again → enter password → verify wallet address is same |
-| 2 | Web Worker signing | Move SSS reconstruction to Web Worker for non-blocking signing (v1.1) |
-| 3 | Integrate into Swarm Resistance | Replace Web3Auth with `@authvault/sdk` in game frontend |
+| 1 | Implement seamless key management (migration) | New tables: `encrypted_keys`, `key_access_log`. Enable pgsodium. See spec in `AuthVault_MVP_Key_Management_Revision.md` |
+| 2 | Backend: HKDF derivation + Vault storage | `POST /api/keys/generate` (server generates key, app-encrypt, store in Vault) + audit logging middleware on all `/api/keys/*` |
+| 3 | Backend: device-init route | `POST /api/keys/device-init` -- re-derive userKey, retrieve from Vault, transport-encrypt, return to client |
+| 4 | SDK: remove recovery password UI | Remove `needsRecovery`, `setupRecovery`, `completeRecovery`, `resetKeys`, recovery views from LoginModal. Add auto device-init on new device login |
+| 5 | Test: multi-device | Same Google account in 2 browsers → same wallet address, signing works from both |
+| 6 | Integrate into Swarm Resistance | Replace Web3Auth with `@authvault/sdk` in game frontend (after seamless mode is working) |
 
 ## Deployment Env Vars
 

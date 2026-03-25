@@ -5,14 +5,14 @@ AuthVault MVP -- self-hosted Web3Auth replacement for Swarm Resistance gaming pl
 Authentication + transaction signing only. No wallet UI, no token display, no custody.
 
 ## Current State
-- Session: 2 complete
-- Phase: Backend + demo deployed, Email OTP working, wallet/Google login remaining
-- Repo: github.com/bugiiiii11/AuthVault (14 commits on main)
-- Supabase: project hldkdiibvsdtgxnqaaxq, 4 tables live with RLS
+- Session: 5 complete
+- Phase: All login methods working, signing working. Next: rewrite key management to seamless mode
+- Repo: github.com/bugiiiii11/AuthVault (17 commits on main)
+- Supabase: project hldkdiibvsdtgxnqaaxq, supabase_vault v0.3.1 installed
 - Build: 4/4 packages clean, 33/33 crypto tests passing
 - Backend: live at authvaultbackend-production.up.railway.app
 - Demo: live at auth-vault-demo.vercel.app
-- Blocker: Google login + MetaMask/WalletConnect not wired into LoginModal
+- Next blocker: implement server-assisted seamless key management (see AuthVault_MVP_Key_Management_Revision.md)
 
 ## Tech Stack
 - Monorepo: Turborepo + pnpm 10
@@ -29,7 +29,8 @@ Authentication + transaction signing only. No wallet UI, no token display, no cu
 - EVM only (no Solana yet)
 - Google OAuth + Email OTP (Apple, X later)
 - MetaMask + WalletConnect + Coinbase wallet connections
-- Shamir SSS (2-of-3) for social login key management
+- Server-assisted seamless key management (HKDF + Vault, no recovery password)
+- SSS 2-of-3 code kept behind `mode: 'sovereign'` flag for future SaaS use
 - SIWE (Sign-In With Ethereum) for wallet users
 
 ## Conventions
