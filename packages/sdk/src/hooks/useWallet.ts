@@ -3,7 +3,7 @@
  */
 import { useCallback, useState, useMemo } from 'react';
 import { useAuthVaultContext } from '../AuthVaultProvider';
-import { saveSession, saveUser, getDeviceId } from '../core/session';
+import { getDeviceId } from '../core/session';
 import { createMetaMaskConnector } from '../connectors/metamask';
 import { createWalletConnectConnector } from '../connectors/walletconnect';
 import { createCoinbaseConnector } from '../connectors/coinbase';
@@ -11,7 +11,7 @@ import type { WalletConnector, ConnectedWallet } from '../connectors/types';
 import type { WalletProvider } from '@authvault/types';
 
 export function useWallet() {
-  const { config, client, setState } = useAuthVaultContext();
+  const { config, client, setState, handleAuthResponse } = useAuthVaultContext();
   const [error, setError] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
 
@@ -70,20 +70,10 @@ export function useWallet() {
       // Step 4: Sign message
       const signature = await connector.signMessage(message);
 
-      // Step 5: Verify with backend
+      // Step 5: Verify with backend and set auth state
       const deviceId = getDeviceId();
       const res = await client.siweVerify(message, signature, deviceId);
-
-      // Step 6: Set authenticated state
-      client.setToken(res.session.token);
-      saveSession(res.session.token, res.session.expiresAt, res.session.deviceId);
-      saveUser(res.user);
-
-      setState({
-        status: 'authenticated',
-        user: res.user,
-        session: res.session,
-      });
+      await handleAuthResponse(res);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Wallet connection failed';
       setError(msg);
@@ -91,7 +81,7 @@ export function useWallet() {
     } finally {
       setIsConnecting(false);
     }
-  }, [connectors, client, setState]);
+  }, [connectors, client, handleAuthResponse, setState]);
 
   return {
     connect,

@@ -1,11 +1,11 @@
 import { useCallback, useState } from 'react';
 import { useAuthVaultContext } from '../AuthVaultProvider';
-import { saveSession, saveUser, clearSession } from '../core/session';
-import type { OAuthProvider, WalletProvider, AuthResponse } from '@authvault/types';
+import { clearSession } from '../core/session';
+import type { OAuthProvider, WalletProvider } from '@authvault/types';
 
 export interface UseAuthReturn {
   status: 'idle' | 'loading' | 'authenticated' | 'unauthenticated';
-  user: AuthResponse['user'] | null;
+  user: ReturnType<typeof useAuthVaultContext>['state']['user'];
   error: string | null;
   login: (provider: OAuthProvider, options?: LoginOptions) => Promise<void>;
   connectWallet: (provider: WalletProvider) => Promise<void>;
@@ -16,24 +16,12 @@ export interface UseAuthReturn {
 }
 
 interface LoginOptions {
-  supabaseJwt?: string; // Pre-obtained Supabase JWT (from frontend Supabase Auth)
+  supabaseJwt?: string;
 }
 
 export function useAuth(): UseAuthReturn {
-  const { client, state, setState, deviceId } = useAuthVaultContext();
+  const { client, state, setState, deviceId, handleAuthResponse } = useAuthVaultContext();
   const [error, setError] = useState<string | null>(null);
-
-  const handleAuthResponse = useCallback((res: AuthResponse) => {
-    client.setToken(res.session.token);
-    saveSession(res.session.token, res.session.expiresAt, res.session.deviceId);
-    saveUser(res.user);
-    setState({
-      status: 'authenticated',
-      user: res.user,
-      session: res.session,
-    });
-    setError(null);
-  }, [client, setState]);
 
   const login = useCallback(async (provider: OAuthProvider, options?: LoginOptions) => {
     setError(null);
@@ -41,7 +29,6 @@ export function useAuth(): UseAuthReturn {
 
     try {
       if (provider === 'email') {
-        // Email is two-step, handled by sendEmailCode + verifyEmailCode
         throw new Error('Use sendEmailCode() and verifyEmailCode() for email login');
       }
 
@@ -49,22 +36,12 @@ export function useAuth(): UseAuthReturn {
         throw new Error('supabaseJwt required. Complete Supabase Auth flow first, then pass the JWT.');
       }
 
-      // Google, Apple, X -- all go through the same pattern
-      let res: AuthResponse;
-      switch (provider) {
-        case 'google':
-          res = await client.authGoogle(options.supabaseJwt, deviceId);
-          break;
-        case 'apple':
-        case 'x':
-          // Apple and X use the same backend pattern (Supabase JWT verification)
-          // Backend routes to be added for these providers
-          throw new Error(`${provider} login not yet implemented`);
-        default:
-          throw new Error(`Unknown provider: ${provider}`);
+      if (provider === 'google') {
+        const res = await client.authGoogle(options.supabaseJwt, deviceId);
+        await handleAuthResponse(res);
+      } else {
+        throw new Error(`${provider} login not yet implemented`);
       }
-
-      handleAuthResponse(res);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Login failed';
       setError(msg);
@@ -89,7 +66,7 @@ export function useAuth(): UseAuthReturn {
 
     try {
       const res = await client.emailVerify(email, code, deviceId);
-      handleAuthResponse(res);
+      await handleAuthResponse(res);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Verification failed';
       setError(msg);
@@ -103,9 +80,6 @@ export function useAuth(): UseAuthReturn {
     setState(prev => ({ ...prev, status: 'loading' }));
 
     try {
-      // Wallet connection is handled by the connector components
-      // They call client.siweNonce() and client.siweVerify() directly
-      // This is a placeholder for the connector abstraction
       throw new Error('Use wallet connector components for wallet login');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Wallet connection failed';

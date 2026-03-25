@@ -6,7 +6,11 @@ import './index.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthVaultProvider backendUrl={import.meta.env.VITE_AUTHVAULT_BACKEND_URL || 'http://localhost:3001'}>
+    <AuthVaultProvider
+      backendUrl={import.meta.env.VITE_AUTHVAULT_BACKEND_URL || 'http://localhost:3001'}
+      supabaseUrl={import.meta.env.VITE_SUPABASE_URL}
+      supabaseAnonKey={import.meta.env.VITE_SUPABASE_ANON_KEY}
+    >
       <App />
     </AuthVaultProvider>
   </StrictMode>,

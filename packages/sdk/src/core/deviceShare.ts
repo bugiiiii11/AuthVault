@@ -113,6 +113,40 @@ export async function hasDeviceShare(
 }
 
 /**
+ * Get or create a persistent 32-byte encryption key for a user.
+ * Generated once on first login and reused across sessions.
+ * Stored in IndexedDB alongside device shares.
+ */
+export async function getOrCreateEncryptionKey(userId: string): Promise<Uint8Array> {
+  const db = await openDB();
+  const keyId = `encryption-key:${userId}`;
+
+  const existing = await new Promise<{ key: string; data: string } | undefined>((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const req = tx.objectStore(STORE_NAME).get(keyId);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+
+  if (existing) {
+    const bytes = atob(existing.data).split('').map(c => c.charCodeAt(0));
+    return new Uint8Array(bytes);
+  }
+
+  const key = crypto.getRandomValues(new Uint8Array(32));
+  const keyB64 = btoa(String.fromCharCode(...key));
+
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const req = tx.objectStore(STORE_NAME).put({ key: keyId, data: keyB64 });
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+
+  return key;
+}
+
+/**
  * Clear all device shares (used on logout).
  */
 export async function clearAllShares(): Promise<void> {

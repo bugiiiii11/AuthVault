@@ -4,6 +4,9 @@
  */
 import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { useWallet } from '../hooks/useWallet';
+import { useAuthVaultContext } from '../AuthVaultProvider';
+import type { WalletProvider } from '@authvault/types';
 
 type LoginView = 'main' | 'email-input' | 'email-verify' | 'wallet-select' | 'wallet-connecting';
 
@@ -15,7 +18,6 @@ interface LoginModalProps {
     social?: ('google' | 'email')[];
     wallets?: ('metamask' | 'walletconnect' | 'coinbase')[];
   };
-  supabaseJwt?: string;
   logo?: ReactNode;
   title?: string;
 }
@@ -25,11 +27,12 @@ export function LoginModal({
   onClose,
   onSuccess,
   providers = { social: ['google', 'email'], wallets: ['metamask', 'walletconnect'] },
-  supabaseJwt,
   logo,
   title = 'Connect to Play',
 }: LoginModalProps) {
-  const { status, user, error, login, sendEmailCode, verifyEmailCode } = useAuth();
+  const { status, user, error, sendEmailCode, verifyEmailCode } = useAuth();
+  const { connect, isConnecting, error: walletError } = useWallet();
+  const { supabaseClient } = useAuthVaultContext();
   const [view, setView] = useState<LoginView>('main');
   const [email, setEmail] = useState('');
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
@@ -78,9 +81,16 @@ export function LoginModal({
   }, [resendTimer]);
 
   const handleGoogleLogin = useCallback(async () => {
-    if (!supabaseJwt) return;
-    await login('google', { supabaseJwt });
-  }, [login, supabaseJwt]);
+    if (!supabaseClient) return;
+    await supabaseClient.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin },
+    });
+  }, [supabaseClient]);
+
+  const handleWalletConnect = useCallback(async (provider: WalletProvider) => {
+    await connect(provider);
+  }, [connect]);
 
   const handleEmailSubmit = useCallback(async () => {
     if (!email) return;
@@ -128,7 +138,8 @@ export function LoginModal({
 
   if (!isOpen) return null;
 
-  const isLoading = status === 'loading';
+  const isLoading = status === 'loading' || isConnecting;
+  const displayError = error || walletError;
 
   return (
     <div
@@ -158,9 +169,9 @@ export function LoginModal({
         {/* Content */}
         <div className="p-5 bg-[#0F0F23]" aria-busy={isLoading}>
           {/* Error message */}
-          {error && (
+          {displayError && (
             <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm" role="alert">
-              {error}
+              {displayError}
             </div>
           )}
 
@@ -171,7 +182,7 @@ export function LoginModal({
               {providers.social?.includes('google') && (
                 <button
                   onClick={handleGoogleLogin}
-                  disabled={isLoading || !supabaseJwt}
+                  disabled={isLoading || !supabaseClient}
                   className="w-full flex items-center gap-3 p-3 bg-white text-gray-900 rounded-lg font-medium hover:bg-gray-100 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
                   aria-label="Continue with Google"
                 >
@@ -205,13 +216,35 @@ export function LoginModal({
 
               {/* Wallet options */}
               {providers.wallets?.includes('metamask') && (
-                <WalletButton name="MetaMask" icon={<MetaMaskIcon />} disabled={isLoading} onClick={() => {}} />
+                <WalletButton
+                  name="MetaMask"
+                  icon={<MetaMaskIcon />}
+                  disabled={isLoading}
+                  onClick={() => handleWalletConnect('metamask')}
+                />
               )}
               {providers.wallets?.includes('walletconnect') && (
-                <WalletButton name="WalletConnect" icon={<WalletConnectIcon />} disabled={isLoading} onClick={() => {}} />
+                <WalletButton
+                  name="WalletConnect"
+                  icon={<WalletConnectIcon />}
+                  disabled={isLoading}
+                  onClick={() => handleWalletConnect('walletconnect')}
+                />
               )}
               {providers.wallets?.includes('coinbase') && (
-                <WalletButton name="Coinbase Wallet" icon={<CoinbaseIcon />} disabled={isLoading} onClick={() => {}} />
+                <WalletButton
+                  name="Coinbase Wallet"
+                  icon={<CoinbaseIcon />}
+                  disabled={isLoading}
+                  onClick={() => handleWalletConnect('coinbase')}
+                />
+              )}
+
+              {isConnecting && (
+                <div className="flex items-center justify-center gap-2 py-2 text-cyan-400 text-sm">
+                  <Spinner />
+                  <span>Connecting wallet...</span>
+                </div>
               )}
             </div>
           )}
