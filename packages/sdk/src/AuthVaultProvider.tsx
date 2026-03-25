@@ -3,19 +3,96 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { AuthState, AuthUser, AuthResponse } from '@authvault/types';
 import { AuthVaultClient } from './core/client';
 import { loadSession, loadUser, saveSession, saveUser, clearSession, getDeviceId } from './core/session';
-import { getOrCreateEncryptionKey } from './core/deviceShare';
 import { storePrivateKey, hasPrivateKey } from './core/privateKeyStore';
 
-// libsodium loaded dynamically (same pattern as encryption.ts)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _sodium: any;
-async function getSodium() {
-  if (!_sodium) {
-    const mod = await import('libsodium-wrappers');
-    _sodium = mod.default || mod;
-    await _sodium.ready;
+// -- Transport decryption helpers (Web Crypto API, no libsodium needed) --
+
+function hexToBytes(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
   }
-  return _sodium;
+  return bytes;
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Generate an ephemeral X25519 keypair for transport key exchange.
+ */
+async function generateTransportKeypair(): Promise<{
+  publicKeyHex: string;
+  keypair: CryptoKeyPair;
+}> {
+  // X25519 is not in older TS lib types -- cast through unknown
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const keypair = await (crypto.subtle as any).generateKey(
+    { name: 'X25519' },
+    true,
+    ['deriveBits'],
+  ) as CryptoKeyPair;
+  const pubRaw = await crypto.subtle.exportKey('raw', keypair.publicKey);
+  return { publicKeyHex: bytesToHex(new Uint8Array(pubRaw)), keypair };
+}
+
+/**
+ * Decrypt the private key returned by POST /api/keys/device-init.
+ * Mirrors the server-side X25519 ECDH + HKDF + AES-256-GCM operation.
+ */
+async function unsealPrivateKey(
+  serverPublicKey: string,
+  encryptedKey: string,
+  iv: string,
+  tag: string,
+  clientKeypair: CryptoKeyPair,
+): Promise<Uint8Array> {
+  // X25519 not in all TS lib versions -- cast through any where needed
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const subtle = crypto.subtle as any;
+
+  // Import server's ephemeral X25519 public key (raw 32 bytes)
+  const serverPub = await subtle.importKey(
+    'raw',
+    hexToBytes(serverPublicKey),
+    { name: 'X25519' },
+    false,
+    [],
+  ) as CryptoKey;
+
+  // ECDH: derive shared bits
+  const sharedBits = await subtle.deriveBits(
+    { name: 'X25519', public: serverPub },
+    clientKeypair.privateKey,
+    256,
+  ) as ArrayBuffer;
+
+  // HKDF → AES-256 key (matches server: hkdfSync('sha256', ..., 'authvault-device-init-v1', 32))
+  const hkdfKey = await crypto.subtle.importKey('raw', sharedBits, 'HKDF', false, ['deriveKey']);
+  const aesKey = await crypto.subtle.deriveKey(
+    {
+      name: 'HKDF',
+      hash: 'SHA-256',
+      salt: new Uint8Array(0) as unknown as BufferSource,
+      info: new TextEncoder().encode('authvault-device-init-v1') as unknown as BufferSource,
+    },
+    hkdfKey,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['decrypt'],
+  );
+
+  // AES-256-GCM decrypt (Web Crypto expects tag appended to ciphertext)
+  const encBytes = hexToBytes(encryptedKey);
+  const tagBytes = hexToBytes(tag);
+  const ivBytes = hexToBytes(iv);
+  const cipherWithTag = new Uint8Array(encBytes.length + tagBytes.length);
+  cipherWithTag.set(encBytes);
+  cipherWithTag.set(tagBytes, encBytes.length);
+
+  const decrypted = await subtle.decrypt({ name: 'AES-GCM', iv: ivBytes }, aesKey, cipherWithTag) as ArrayBuffer;
+  return new Uint8Array(decrypted);
 }
 
 export interface AuthVaultConfig {
@@ -98,23 +175,14 @@ export function AuthVaultProvider({
       // Step 1: ensure key exists server-side, get EVM address
       const { evmAddress } = await client.generateKey();
 
-      // Step 2: generate ephemeral X25519 keypair
-      const sodium = await getSodium();
-      const ephemeral = sodium.crypto_box_keypair();
-      const pubKeyHex = sodium.to_hex(ephemeral.publicKey);
+      // Step 2: generate ephemeral X25519 keypair (Web Crypto, no libsodium)
+      const { publicKeyHex, keypair } = await generateTransportKeypair();
 
-      // Step 3: get sealed private key from server
-      const { encryptedKey } = await client.deviceInit(pubKeyHex);
+      // Step 3: get transport-encrypted private key from server
+      const { serverPublicKey, encryptedKey, iv, tag } = await client.deviceInit(publicKeyHex);
 
-      // Step 4: unseal
-      const sealedBytes = sodium.from_hex(encryptedKey);
-      const privateKeyBytes = sodium.crypto_box_seal_open(
-        sealedBytes,
-        ephemeral.publicKey,
-        ephemeral.privateKey,
-      );
-
-      if (!privateKeyBytes) throw new Error('Failed to unseal private key');
+      // Step 4: X25519 ECDH + AES-256-GCM decrypt
+      const privateKeyBytes = await unsealPrivateKey(serverPublicKey, encryptedKey, iv, tag, keypair);
 
       // Step 5: store encrypted in IndexedDB
       await storePrivateKey(userId, 'secp256k1', privateKeyBytes);

@@ -59,7 +59,12 @@ export class AuthVaultClient {
    * Retrieve the private key sealed for this device.
    * @param clientPublicKey - hex-encoded X25519 public key (32 bytes = 64 hex chars)
    */
-  async deviceInit(clientPublicKey: string): Promise<{ encryptedKey: string }> {
+  async deviceInit(clientPublicKey: string): Promise<{
+    serverPublicKey: string;
+    encryptedKey: string;
+    iv: string;
+    tag: string;
+  }> {
     return this.post('/api/keys/device-init', { clientPublicKey });
   }
 
