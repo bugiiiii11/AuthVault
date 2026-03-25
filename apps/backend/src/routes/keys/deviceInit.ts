@@ -18,7 +18,17 @@ import { Hono } from 'hono';
 import { requireAuth } from '../../middleware/auth';
 import { adminClient } from '../../config/supabase';
 import { rateLimit } from '../../middleware/rateLimit';
-import _sodium from 'libsodium-wrappers';
+// libsodium-wrappers is CJS-only; use dynamic import to avoid ESM startup crash.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _sodium: any;
+async function getSodium() {
+  if (!_sodium) {
+    const mod = await import('libsodium-wrappers');
+    _sodium = mod.default || mod;
+    await _sodium.ready;
+  }
+  return _sodium;
+}
 
 const deviceInit = new Hono();
 
@@ -60,8 +70,7 @@ deviceInit.post(
       }
 
       // Seal private key bytes with the client's X25519 public key
-      await _sodium.ready;
-      const sodium = _sodium;
+      const sodium = await getSodium();
 
       const clientPubKeyBytes = sodium.from_hex(body.clientPublicKey);
       const privateKeyBytes = sodium.from_hex(privateKeyHex as string);
