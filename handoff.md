@@ -5,6 +5,16 @@
 | Session | Date | Title | Key outcome |
 |---------|------|-------|-------------|
 | 1 | 2026-03-25 | MVP build | Full auth system: crypto, backend, SDK, connectors, signing |
+| 2 | 2026-03-25 | Deployment + Email OTP | Backend on Railway, demo on Vercel, Email OTP working end-to-end |
+
+## What Was Done (Session 2) -- Deployment + Email OTP
+
+1. **Google 2SV fixed** -- Enabled 2-Step Verification in Google Account, gained Cloud Console access.
+2. **Google OAuth credentials** -- Created OAuth Client ID + Secret in Google Cloud Console, configured Supabase Google provider with callback URL.
+3. **Backend deployed to Railway** -- Fixed 4 Docker/pnpm issues (Dockerfile path, node_modules virtual store, railway.toml location, prod install). Live at: `authvaultbackend-production.up.railway.app`. Committed: 0d7e6ae, c8d2e32, 0809c07, 17db64c.
+4. **Demo deployed to Vercel** -- Fixed hardcoded localhost URL, missing vite/client tsconfig types, turbo.json env vars. Live at: `auth-vault-demo.vercel.app`. Committed: 379e167, 4c6b483, 1000e0a.
+5. **Email OTP working** -- Fixed CORS (ALLOWED_ORIGINS), Supabase OTP length (8→6), email confirmation disabled, OTP verify using anon client. Full login flow verified. Committed: 1542e67, b0a7ca8.
+6. **Backend dev script** -- Added `--env-file=.env` flag to tsx watch command. Committed: 0d7e6ae.
 
 ## What Was Done (Session 1) -- MVP Build
 
@@ -19,40 +29,47 @@
 9. **Key lifecycle** -- generateAndDistributeKeys (generate, split, encrypt, store device + send server/recovery shares). Committed: 601d8d0.
 10. **Deployment config** -- Dockerfile (multi-stage, Node 20 Alpine) + railway.toml. Committed: 601d8d0.
 
-## Blockers Found
+## Live URLs
 
-- **Google Cloud Console** requires 2-Step Verification. User set up Authenticator but console still blocked. May need to sign out/in or wait longer. Google OAuth config deferred to next session.
+| Service | URL |
+|---------|-----|
+| Backend (Railway) | `https://authvaultbackend-production.up.railway.app` |
+| Demo (Vercel) | `https://auth-vault-demo.vercel.app` |
+| Supabase | project `hldkdiibvsdtgxnqaaxq` |
+
+## Known Issues
+
+- **Google login disabled** -- `LoginModal` requires `supabaseJwt` prop which is never passed from `App.tsx`. Needs Supabase OAuth flow on the frontend (client-side `signInWithOAuth`, then pass JWT to backend).
+- **MetaMask/WalletConnect do nothing** -- `onClick={() => {}}` in `LoginModal.tsx` lines 208-211. Wallet connector hooks exist but are not wired into the modal.
+- **EVM address not assigned on login** -- Key generation flow not triggered after first login. "No address yet" shown in demo.
 
 ## What To Do Next
 
 | Priority | Task | Details |
 |----------|------|---------|
-| 1 | Google 2SV fix | Sign out/in to Google, then access Cloud Console to create OAuth credentials |
-| 2 | Supabase Auth config | Enable Google OAuth provider with Client ID + Secret |
-| 3 | Deploy backend to Railway | Connect GitHub repo, set env vars from .env.example, verify /api/health |
-| 4 | Deploy demo to Vercel | Connect GitHub repo, set VITE_ env vars, verify build |
-| 5 | Integration testing | Test Email OTP + MetaMask flows end-to-end (Google after OAuth config) |
-| 6 | Recovery flow | Add recovery share retrieval endpoint, password-based recovery |
-| 7 | Web Worker signing | Move SSS reconstruction to Web Worker (v1.1) |
-| 8 | Integrate into Swarm Resistance | Replace Web3Auth with @authvault/sdk in game frontend |
+| 1 | Wire MetaMask into LoginModal | Replace empty onClick with useWallet hook, trigger SIWE flow |
+| 2 | Wire WalletConnect into LoginModal | Same pattern as MetaMask |
+| 3 | Google login frontend flow | Call `supabase.auth.signInWithOAuth({ provider: 'google' })` in frontend, pass resulting JWT to backend |
+| 4 | Key generation on first login | Trigger `generateAndDistributeKeys` after `isNew === true` response from backend |
+| 5 | Recovery flow | Add recovery share retrieval endpoint, password-based recovery |
+| 6 | Web Worker signing | Move SSS reconstruction to Web Worker (v1.1) |
+| 7 | Integrate into Swarm Resistance | Replace Web3Auth with @authvault/sdk in game frontend |
 
-## Deployment Env Vars Needed
+## Deployment Env Vars
 
-### Railway (backend)
+### Railway (backend) -- already set
 ```
 SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
-AUTHVAULT_JWT_SECRET (generate: openssl rand -hex 32)
-AUTHVAULT_ENCRYPTION_MASTER_KEY (generate: openssl rand -hex 32)
-UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN (optional for dev)
-ALLOWED_ORIGINS (your Vercel domain)
-PORT=3001
-NODE_ENV=production
+AUTHVAULT_JWT_SECRET, AUTHVAULT_ENCRYPTION_MASTER_KEY
+GOOGLE_CLIENT_ID
+ALLOWED_ORIGINS=https://auth-vault-demo.vercel.app
+NODE_ENV=production, PORT=3001
 ```
 
-### Vercel (demo)
+### Vercel (demo) -- already set
 ```
 VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
-VITE_AUTHVAULT_BACKEND_URL (your Railway URL)
+VITE_AUTHVAULT_BACKEND_URL=https://authvaultbackend-production.up.railway.app
 VITE_WALLETCONNECT_PROJECT_ID
 ```
 
@@ -64,9 +81,10 @@ VITE_WALLETCONNECT_PROJECT_ID
 | `packages/sdk/src/core/` | HTTP client, device share, session, key manager |
 | `packages/sdk/src/hooks/` | useAuth, useWallet, useSigning |
 | `packages/sdk/src/connectors/` | MetaMask, WalletConnect, Coinbase |
-| `packages/sdk/src/components/` | LoginModal (Swarm Resistance design) |
+| `packages/sdk/src/components/LoginModal.tsx` | Auth modal -- Google/wallet handlers need wiring |
 | `apps/backend/src/routes/` | Auth (google, email, siwe, session) + keys |
-| `apps/backend/src/services/` | userManager, oauthVerifier, emailOtp |
+| `apps/backend/src/services/emailOtp.ts` | OTP send (admin client) + verify (anon client) |
 | `apps/backend/src/middleware/` | JWT auth, rate limiting |
-| `apps/backend/Dockerfile` | Production Docker build |
+| `apps/backend/Dockerfile` | Production Docker build (fresh pnpm install in runner) |
+| `apps/demo/src/main.tsx` | Demo entry -- AuthVaultProvider with VITE_AUTHVAULT_BACKEND_URL |
 | `supabase/migrations/` | 4 SQL files (applied) |

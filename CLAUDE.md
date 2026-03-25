@@ -5,12 +5,14 @@ AuthVault MVP -- self-hosted Web3Auth replacement for Swarm Resistance gaming pl
 Authentication + transaction signing only. No wallet UI, no token display, no custody.
 
 ## Current State
-- Session: 1 complete
-- Phase: MVP code complete, deployment + integration remaining
-- Repo: github.com/bugiiiii11/AuthVault (8 commits on main)
+- Session: 2 complete
+- Phase: Backend + demo deployed, Email OTP working, wallet/Google login remaining
+- Repo: github.com/bugiiiii11/AuthVault (14 commits on main)
 - Supabase: project hldkdiibvsdtgxnqaaxq, 4 tables live with RLS
 - Build: 4/4 packages clean, 33/33 crypto tests passing
-- Blocker: Google Cloud Console requires 2SV setup (in progress)
+- Backend: live at authvaultbackend-production.up.railway.app
+- Demo: live at auth-vault-demo.vercel.app
+- Blocker: Google login + MetaMask/WalletConnect not wired into LoginModal
 
 ## Tech Stack
 - Monorepo: Turborepo + pnpm 10
