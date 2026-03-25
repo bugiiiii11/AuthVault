@@ -6,6 +6,18 @@
 |---------|------|-------|-------------|
 | 1 | 2026-03-25 | MVP build | Full auth system: crypto, backend, SDK, connectors, signing |
 | 2 | 2026-03-25 | Deployment + Email OTP | Backend on Railway, demo on Vercel, Email OTP working end-to-end |
+| 3 | 2026-03-25 | Google + MetaMask + key generation | All login methods wired and tested live |
+
+## What Was Done (Session 3) -- Google + MetaMask + Key Generation
+
+1. **MetaMask wired** -- `LoginModal` now calls `useWallet.connect('metamask')`. SIWE flow end-to-end: nonce → sign → verify → session. Tested and working.
+2. **WalletConnect wired** -- Same pattern. UI opens and shows QR modal. Blocked only by WalletConnect Cloud domain whitelist (see Known Issues).
+3. **Google OAuth wired** -- `LoginModal.handleGoogleLogin` calls `supabaseClient.auth.signInWithOAuth`. `AuthVaultProvider` listens to `onAuthStateChange`, auto-calls backend on redirect callback. Tested and working.
+4. **Key generation on first login** -- Centralized `handleAuthResponse` in `AuthVaultProvider` generates Shamir SSS keys (3 shares, 2-of-3 threshold) when `isNew === true` and `loginMethod !== 'wallet'`. Device share stored in IndexedDB, server + recovery shares sent to backend. EVM address populated immediately after login.
+5. **`@supabase/supabase-js` added to SDK** -- Supabase client created in provider if `supabaseUrl` + `supabaseAnonKey` provided. Exposed via context.
+6. **`getOrCreateEncryptionKey` helper** -- Generates/persists a 32-byte encryption key per user in IndexedDB. Used to encrypt all SSS shares.
+7. **Deleted `@authvault/demo` Railway service** -- Demo is on Vercel only. Railway service was misconfigured (static frontend, no healthcheck).
+8. **Committed**: 13aaa5d, f8a8582.
 
 ## What Was Done (Session 2) -- Deployment + Email OTP
 
@@ -39,21 +51,16 @@
 
 ## Known Issues
 
-- **Google login disabled** -- `LoginModal` requires `supabaseJwt` prop which is never passed from `App.tsx`. Needs Supabase OAuth flow on the frontend (client-side `signInWithOAuth`, then pass JWT to backend).
-- **MetaMask/WalletConnect do nothing** -- `onClick={() => {}}` in `LoginModal.tsx` lines 208-211. Wallet connector hooks exist but are not wired into the modal.
-- **EVM address not assigned on login** -- Key generation flow not triggered after first login. "No address yet" shown in demo.
+- **WalletConnect QR blank** -- `pulse.walletconnect.org` returns 403 (origin not allowed). Fix: add `auth-vault-demo.vercel.app` to allowed domains in WalletConnect Cloud dashboard (cloud.walletconnect.com → project → Settings → Allowed Domains).
 
 ## What To Do Next
 
 | Priority | Task | Details |
 |----------|------|---------|
-| 1 | Wire MetaMask into LoginModal | Replace empty onClick with useWallet hook, trigger SIWE flow |
-| 2 | Wire WalletConnect into LoginModal | Same pattern as MetaMask |
-| 3 | Google login frontend flow | Call `supabase.auth.signInWithOAuth({ provider: 'google' })` in frontend, pass resulting JWT to backend |
-| 4 | Key generation on first login | Trigger `generateAndDistributeKeys` after `isNew === true` response from backend |
-| 5 | Recovery flow | Add recovery share retrieval endpoint, password-based recovery |
-| 6 | Web Worker signing | Move SSS reconstruction to Web Worker (v1.1) |
-| 7 | Integrate into Swarm Resistance | Replace Web3Auth with @authvault/sdk in game frontend |
+| 1 | Fix WalletConnect domain whitelist | WalletConnect Cloud → project → Settings → add `auth-vault-demo.vercel.app` |
+| 2 | Recovery flow | Add recovery share retrieval endpoint, password-based recovery UI |
+| 3 | Web Worker signing | Move SSS reconstruction to Web Worker for non-blocking signing (v1.1) |
+| 4 | Integrate into Swarm Resistance | Replace Web3Auth with `@authvault/sdk` in game frontend |
 
 ## Deployment Env Vars
 
@@ -81,10 +88,11 @@ VITE_WALLETCONNECT_PROJECT_ID
 | `packages/sdk/src/core/` | HTTP client, device share, session, key manager |
 | `packages/sdk/src/hooks/` | useAuth, useWallet, useSigning |
 | `packages/sdk/src/connectors/` | MetaMask, WalletConnect, Coinbase |
-| `packages/sdk/src/components/LoginModal.tsx` | Auth modal -- Google/wallet handlers need wiring |
+| `packages/sdk/src/components/LoginModal.tsx` | Auth modal -- all methods wired |
+| `packages/sdk/src/AuthVaultProvider.tsx` | Provider -- Supabase client, handleAuthResponse, key gen |
 | `apps/backend/src/routes/` | Auth (google, email, siwe, session) + keys |
 | `apps/backend/src/services/emailOtp.ts` | OTP send (admin client) + verify (anon client) |
 | `apps/backend/src/middleware/` | JWT auth, rate limiting |
 | `apps/backend/Dockerfile` | Production Docker build (fresh pnpm install in runner) |
-| `apps/demo/src/main.tsx` | Demo entry -- AuthVaultProvider with VITE_AUTHVAULT_BACKEND_URL |
+| `apps/demo/src/main.tsx` | Demo entry -- AuthVaultProvider with all env vars |
 | `supabase/migrations/` | 4 SQL files (applied) |
