@@ -39,6 +39,7 @@ export function LoginModal({
     setupRecovery,
     completeRecovery,
     dismissRecoverySetup,
+    resetKeys,
   } = useAuthVaultContext();
   const [view, setView] = useState<LoginView>('main');
   const [email, setEmail] = useState('');
@@ -491,6 +492,24 @@ export function LoginModal({
                 style={{ fontFamily: 'Orbitron, monospace' }}
               >
                 {recoveryLoading ? <Spinner /> : 'Recover Wallet'}
+              </button>
+
+              <button
+                onClick={async () => {
+                  setRecoveryError('');
+                  setRecoveryLoading(true);
+                  try {
+                    await resetKeys();
+                  } catch {
+                    setRecoveryError('Key generation failed. Please try again.');
+                  } finally {
+                    setRecoveryLoading(false);
+                  }
+                }}
+                disabled={recoveryLoading}
+                className="w-full text-gray-500 text-xs hover:text-gray-400 transition py-1"
+              >
+                No recovery password? Generate a new wallet instead
               </button>
             </div>
           )}

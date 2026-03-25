@@ -29,6 +29,7 @@ export interface AuthVaultContextValue {
   setupRecovery: (password: string) => Promise<void>;
   completeRecovery: (password: string) => Promise<void>;
   dismissRecoverySetup: () => void;
+  resetKeys: () => Promise<void>;
 }
 
 const AuthVaultContext = createContext<AuthVaultContextValue | null>(null);
@@ -160,6 +161,25 @@ export function AuthVaultProvider({
   }, []);
 
   /**
+   * Generate fresh keys for the current user, discarding the old wallet.
+   * Used when the recovery bundle is unavailable (e.g. DB reset) and the
+   * user cannot recover their old address.
+   */
+  const resetKeys = useCallback(async () => {
+    const user = loadUser<AuthUser>();
+    if (!user || user.loginMethod === 'wallet') return;
+
+    const encKey = await getOrCreateEncryptionKey(user.id);
+    const { evmAddress } = await generateAndDistributeKeys(client, user.id, encKey);
+    const updatedUser = { ...user, evmAddress };
+    saveUser(updatedUser);
+    setState(prev => ({ ...prev, user: updatedUser }));
+    setPendingEncKey(encKey);
+    setNeedsRecovery(false);
+    setNeedsRecoverySetup(true);
+  }, [client]);
+
+  /**
    * Complete account recovery on a new device using the recovery password.
    * The user must already be authenticated (JWT in place) before calling this.
    */
@@ -276,6 +296,7 @@ export function AuthVaultProvider({
       setupRecovery,
       completeRecovery,
       dismissRecoverySetup,
+      resetKeys,
     }}>
       {children}
     </AuthVaultContext.Provider>
