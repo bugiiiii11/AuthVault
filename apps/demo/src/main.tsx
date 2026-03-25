@@ -10,6 +10,7 @@ createRoot(document.getElementById('root')!).render(
       backendUrl={import.meta.env.VITE_AUTHVAULT_BACKEND_URL || 'http://localhost:3001'}
       supabaseUrl={import.meta.env.VITE_SUPABASE_URL}
       supabaseAnonKey={import.meta.env.VITE_SUPABASE_ANON_KEY}
+      walletConnectProjectId={import.meta.env.VITE_WALLETCONNECT_PROJECT_ID}
     >
       <App />
     </AuthVaultProvider>
