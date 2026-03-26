@@ -5,14 +5,14 @@ AuthVault MVP -- self-hosted Web3Auth replacement for Swarm Resistance gaming pl
 Authentication + transaction signing only. No wallet UI, no token display, no custody.
 
 ## Current State
-- Session: 5 complete
-- Phase: All login methods working, signing working. Next: rewrite key management to seamless mode
-- Repo: github.com/bugiiiii11/AuthVault (17 commits on main)
+- Session: 6 complete
+- Phase: Seamless key management implemented. Next: verify Railway deploy, test multi-device, integrate into Swarm Resistance
+- Repo: github.com/bugiiiii11/AuthVault (21 commits on main)
 - Supabase: project hldkdiibvsdtgxnqaaxq, supabase_vault v0.3.1 installed
 - Build: 4/4 packages clean, 33/33 crypto tests passing
-- Backend: live at authvaultbackend-production.up.railway.app
+- Backend: live at authvaultbackend-production.up.railway.app (no libsodium -- Node.js crypto only)
 - Demo: live at auth-vault-demo.vercel.app
-- Next blocker: implement server-assisted seamless key management (see AuthVault_MVP_Key_Management_Revision.md)
+- Next blocker: verify deploy works, test multi-device flow
 
 ## Tech Stack
 - Monorepo: Turborepo + pnpm 10
@@ -22,7 +22,7 @@ Authentication + transaction signing only. No wallet UI, no token display, no cu
 - Database: Supabase (PostgreSQL + Auth + Vault)
 - SDK bundler: tsup
 - Testing: Vitest
-- Crypto: @noble/curves, libsodium-wrappers, Shamir SSS (custom GF(2^8))
+- Crypto: @noble/curves, libsodium-wrappers (SDK only), Node.js crypto (backend), Web Crypto API (transport)
 - Wallets: MetaMask (EIP-6963), WalletConnect v2, Coinbase Wallet SDK
 
 ## MVP Scope

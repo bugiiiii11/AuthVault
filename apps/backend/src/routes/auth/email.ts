@@ -86,11 +86,18 @@ email.post(
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
+      console.error('Email OTP verify error:', message);
 
       if (message.includes('expired')) {
         return c.json({
           error: { code: 'AUTH_OTP_EXPIRED', message: 'OTP expired', userMessage: 'Code expired. Request a new one.', retryable: true },
         }, 400);
+      }
+
+      if (message.includes('duplicate') || message.includes('unique')) {
+        return c.json({
+          error: { code: 'AUTH_IDENTITY_CONFLICT', message: 'Identity conflict', userMessage: 'This email is linked to another login method. Try a different login.', retryable: false },
+        }, 409);
       }
 
       return c.json({

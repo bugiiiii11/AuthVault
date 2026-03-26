@@ -247,11 +247,24 @@ export function AuthVaultProvider({
           if (user.loginMethod !== 'wallet') {
             const hasKey = await hasPrivateKey(user.id, 'secp256k1');
             if (!hasKey) {
+              // No key on this device: fetch from server
               const evmAddress = await ensureLocalKey(user.id);
               if (evmAddress) {
                 const updatedUser = { ...user, evmAddress };
                 saveUser(updatedUser);
                 setState(prev => ({ ...prev, user: updatedUser }));
+              }
+            } else if (!user.evmAddress) {
+              // Key exists locally but DB address is missing: fetch address from server
+              try {
+                const { evmAddress } = await client.generateKey();
+                if (evmAddress) {
+                  const updatedUser = { ...user, evmAddress };
+                  saveUser(updatedUser);
+                  setState(prev => ({ ...prev, user: updatedUser }));
+                }
+              } catch {
+                // Non-fatal: address will show after next login
               }
             }
           }

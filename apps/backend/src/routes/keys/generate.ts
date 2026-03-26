@@ -33,6 +33,13 @@ keys.post(
         .single();
 
       if (existing?.evm_address) {
+        // Backfill wallet_users.public_key_evm if missing (fixes column name bug from session 6)
+        await adminClient
+          .from('wallet_users')
+          .update({ public_key_evm: existing.evm_address })
+          .eq('id', auth.sub)
+          .is('public_key_evm', null);
+
         return c.json({ success: true, evmAddress: existing.evm_address });
       }
 
@@ -67,7 +74,7 @@ keys.post(
       // Update public EVM address on the user record
       await adminClient
         .from('wallet_users')
-        .update({ evm_address: evmAddress })
+        .update({ public_key_evm: evmAddress })
         .eq('id', auth.sub);
 
       // Audit log

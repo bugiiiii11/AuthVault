@@ -19,9 +19,15 @@ interface UserResult {
 
 /**
  * Find or create a wallet_user based on OAuth identity.
+ *
+ * Checks three paths in order:
+ *   1. Exact match on provider + subject (normal case)
+ *   2. Match on supabase_auth_id (handles Supabase identity auto-linking,
+ *      e.g. same email used for both Google OAuth and email OTP)
+ *   3. Create new user
  */
 export async function findOrCreateUser(identity: OAuthIdentity): Promise<UserResult> {
-  // Check if user already exists
+  // 1. Exact match: provider + subject
   const { data: existing } = await adminClient
     .from('wallet_users')
     .select('*')
@@ -30,7 +36,6 @@ export async function findOrCreateUser(identity: OAuthIdentity): Promise<UserRes
     .single();
 
   if (existing) {
-    // Update last login
     await adminClient
       .from('wallet_users')
       .update({ last_login_at: new Date().toISOString() })
@@ -42,7 +47,26 @@ export async function findOrCreateUser(identity: OAuthIdentity): Promise<UserRes
     };
   }
 
-  // Create new user
+  // 2. Match by supabase_auth_id (identity linking: same Supabase user, different provider)
+  const { data: linked } = await adminClient
+    .from('wallet_users')
+    .select('*')
+    .eq('supabase_auth_id', identity.supabaseAuthId)
+    .single();
+
+  if (linked) {
+    await adminClient
+      .from('wallet_users')
+      .update({ last_login_at: new Date().toISOString() })
+      .eq('id', linked.id);
+
+    return {
+      user: mapDbUser(linked),
+      isNew: false,
+    };
+  }
+
+  // 3. Create new user
   const { data: newUser, error } = await adminClient
     .from('wallet_users')
     .insert({
