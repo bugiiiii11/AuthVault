@@ -281,7 +281,7 @@ export function LoginModal({
               <div className="space-y-3">
                 {/* Wallet section */}
                 {providers.wallets && providers.wallets.length > 0 && (
-                  <SectionLabel text="Wallet" />
+                  <SectionLabel text="Web3 Wallet" />
                 )}
 
                 {providers.wallets?.includes('metamask') && (
@@ -424,7 +424,7 @@ export function LoginModal({
                     <p className="text-gray-300 text-sm mb-3" style={{ fontFamily: 'Inter, sans-serif' }}>
                       Gmail accounts should use <span style={{ color: '#22d3ee' }}>Google login</span> for the best experience.
                     </p>
-                    <CTAButton onClick={handleGoogleLogin} text="Use Google Login" />
+                    <CTAButton onClick={handleGoogleLogin} text="Use Google Login" variant="accent" />
                   </div>
                 )}
 
@@ -683,36 +683,51 @@ function HUDButton({ icon, label, hint, disabled, loading, onClick }: {
   );
 }
 
-function CTAButton({ onClick, disabled, text, loading }: {
+function CTAButton({ onClick, disabled, text, loading, variant = 'primary' }: {
   onClick: () => void;
   disabled?: boolean;
   text?: string;
   loading?: boolean;
+  variant?: 'primary' | 'accent';
 }) {
+  const isPrimary = variant === 'primary';
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className="w-full py-3 rounded-lg min-h-[48px] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+      className="w-full py-3 rounded-lg min-h-[48px] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
       style={{
         fontFamily: 'Orbitron, monospace',
         fontSize: '12px',
         letterSpacing: '0.15em',
         textTransform: 'uppercase',
         fontWeight: 700,
-        background: 'linear-gradient(135deg, #FF8C00, #FFB84D)',
-        color: '#1a1a2e',
-        boxShadow: '0 0 20px rgba(255, 140, 0, 0.15)',
+        background: isPrimary ? 'rgba(34, 211, 238, 0.06)' : 'linear-gradient(135deg, #FF8C00, #FFB84D)',
+        color: isPrimary ? '#22d3ee' : '#1a1a2e',
+        border: isPrimary ? '1px solid rgba(34, 211, 238, 0.3)' : 'none',
+        boxShadow: isPrimary ? '0 0 15px rgba(34, 211, 238, 0.08)' : '0 0 20px rgba(255, 140, 0, 0.15)',
       }}
       onMouseEnter={(e) => {
         if (!disabled) {
           e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
-          e.currentTarget.style.boxShadow = '0 0 30px rgba(255, 140, 0, 0.3)';
+          if (isPrimary) {
+            e.currentTarget.style.background = 'rgba(34, 211, 238, 0.12)';
+            e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.5)';
+            e.currentTarget.style.boxShadow = '0 0 25px rgba(34, 211, 238, 0.15)';
+          } else {
+            e.currentTarget.style.boxShadow = '0 0 30px rgba(255, 140, 0, 0.3)';
+          }
         }
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = 'translateY(0) scale(1)';
-        e.currentTarget.style.boxShadow = '0 0 20px rgba(255, 140, 0, 0.15)';
+        if (isPrimary) {
+          e.currentTarget.style.background = 'rgba(34, 211, 238, 0.06)';
+          e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.3)';
+          e.currentTarget.style.boxShadow = '0 0 15px rgba(34, 211, 238, 0.08)';
+        } else {
+          e.currentTarget.style.boxShadow = '0 0 20px rgba(255, 140, 0, 0.15)';
+        }
       }}
       onMouseDown={(e) => {
         if (!disabled) e.currentTarget.style.transform = 'scale(0.97)';
@@ -721,7 +736,7 @@ function CTAButton({ onClick, disabled, text, loading }: {
         if (!disabled) e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
       }}
     >
-      {loading ? <Spinner color="#1a1a2e" /> : text && <span>{'< '}{text}{' >'}</span>}
+      {loading ? <Spinner color={isPrimary ? '#22d3ee' : '#1a1a2e'} /> : text && <span>{'< '}{text}{' >'}</span>}
     </button>
   );
 }
