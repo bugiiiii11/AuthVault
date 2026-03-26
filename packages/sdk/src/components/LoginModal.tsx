@@ -1,5 +1,6 @@
 /**
- * LoginModal -- Auth modal following Swarm Resistance design system.
+ * LoginModal -- Auth modal following Swarm Resistance HUD design system.
+ * Glass panels, corner accents with glow dots, hologram aesthetics.
  * Supports wallet connections (MetaMask, WalletConnect, Coinbase) and
  * social logins (Google, Email OTP).
  */
@@ -9,7 +10,7 @@ import { useWallet } from '../hooks/useWallet';
 import { useSignaKitContext } from '../SignaKitProvider';
 import type { WalletProvider } from '@signakit/types';
 
-type LoginView = 'main' | 'email-input' | 'email-verify' | 'wallet-connecting';
+type LoginView = 'main' | 'email-input' | 'email-verify';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -113,13 +114,10 @@ export function LoginModal({
 
   const handleEmailSubmit = useCallback(async () => {
     if (!email) return;
-
-    // Detect Gmail and show warning
     if (isGmailAddress(email)) {
       setGmailWarning(true);
       return;
     }
-
     setGmailWarning(false);
     try {
       await sendEmailCode(email);
@@ -134,11 +132,9 @@ export function LoginModal({
     const newDigits = [...otpDigits];
     newDigits[index] = value;
     setOtpDigits(newDigits);
-
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
-
     if (value && index === 5 && newDigits.every(d => d)) {
       verifyEmailCode(email, newDigits.join(''));
     }
@@ -168,431 +164,474 @@ export function LoginModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="signakit-modal-title"
-      style={{ background: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(8px)' }}
+      style={{
+        background: 'rgba(0, 0, 0, 0.8)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+      }}
     >
       <div
         ref={modalRef}
-        className="relative w-full max-w-sm mx-4 rounded-lg overflow-hidden"
-        style={{ animation: 'signakit-modal-in 0.3s ease-out' }}
+        className="relative w-full max-w-[420px]"
+        style={{ animation: 'sk-modal-in 0.3s ease-out' }}
       >
-        {/* Corner accents */}
-        <CornerAccents />
-
-        {/* Header */}
+        {/* Glass panel */}
         <div
-          className="relative px-6 py-5 text-center"
+          className="relative rounded-xl overflow-hidden"
           style={{
-            background: 'linear-gradient(180deg, #0f1f38 0%, #0F0F23 100%)',
-            borderBottom: '1px solid rgba(34, 211, 238, 0.2)',
+            background: 'linear-gradient(180deg, rgba(15, 31, 56, 0.95) 0%, rgba(15, 15, 35, 0.98) 100%)',
+            border: '1px solid rgba(34, 211, 238, 0.2)',
+            boxShadow: '0 0 40px rgba(34, 211, 238, 0.08), 0 0 80px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(34, 211, 238, 0.1)',
+            backdropFilter: 'blur(20px)',
           }}
         >
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center text-gray-500 hover:text-cyan-400 transition-colors duration-200 rounded"
-            aria-label="Close"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          {/* Corner accents with glow dots */}
+          <HUDCorners />
 
-          {logo && <div className="mb-3">{logo}</div>}
-          <h2
-            id="signakit-modal-title"
-            className="text-cyan-400 text-lg tracking-widest uppercase"
-            style={{ fontFamily: 'Orbitron, monospace', textShadow: '0 0 20px rgba(34, 211, 238, 0.3)' }}
-          >
-            {title}
-          </h2>
-          <p className="text-gray-400 text-sm mt-1">{subtitle}</p>
-        </div>
+          {/* Top edge accent line */}
+          <div style={{
+            position: 'absolute', top: 0, left: '20%', right: '20%', height: '1px',
+            background: 'linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.4), transparent)',
+          }} />
 
-        {/* Content */}
-        <div className="px-5 py-5" style={{ background: '#0F0F23' }} aria-busy={isLoading}>
-          {/* Error message */}
-          {displayError && (
-            <div className="mb-4 p-3 rounded-lg text-sm flex items-start gap-2" role="alert"
-              style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)' }}
+          {/* Header */}
+          <div className="relative px-6 pt-6 pb-4 text-center">
+            {/* Close button */}
+            <button
+              onClick={onClose}
+              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded transition-all duration-200"
+              style={{
+                color: 'rgba(156, 163, 175, 0.6)',
+                border: '1px solid rgba(34, 211, 238, 0.1)',
+                background: 'rgba(15, 31, 56, 0.5)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#22d3ee';
+                e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.3)';
+                e.currentTarget.style.boxShadow = '0 0 12px rgba(34, 211, 238, 0.15)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'rgba(156, 163, 175, 0.6)';
+                e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.1)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+              aria-label="Close"
             >
-              <svg className="w-4 h-4 text-red-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.072 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
               </svg>
-              <span className="text-red-400">{displayError}</span>
+            </button>
+
+            {logo && <div className="mb-4">{logo}</div>}
+
+            {/* Decorative line above title */}
+            <div className="flex justify-center mb-3">
+              <div style={{ width: '40px', height: '2px', background: 'linear-gradient(90deg, transparent, #22d3ee, transparent)' }} />
             </div>
-          )}
 
-          {/* Main view */}
-          {view === 'main' && (
-            <div className="space-y-2.5">
-              {/* Wallet section label */}
-              {providers.wallets && providers.wallets.length > 0 && (
-                <p
-                  className="text-gray-500 text-xs uppercase tracking-widest mb-1 px-1"
-                  style={{ fontFamily: 'Orbitron, monospace' }}
-                >
-                  Wallet
-                </p>
-              )}
+            <h2
+              id="signakit-modal-title"
+              className="text-lg tracking-[0.2em] uppercase"
+              style={{
+                fontFamily: 'Orbitron, monospace',
+                color: '#22d3ee',
+                textShadow: '0 0 20px rgba(34, 211, 238, 0.3)',
+              }}
+            >
+              {title}
+            </h2>
+            <p className="text-gray-400 text-sm mt-1.5" style={{ fontFamily: 'Inter, sans-serif' }}>
+              {subtitle}
+            </p>
+          </div>
 
-              {/* Wallet options -- listed first */}
-              {providers.wallets?.includes('metamask') && (
-                <WalletButton
-                  name="MetaMask"
-                  icon={<MetaMaskIcon />}
-                  disabled={isLoading}
-                  loading={connectingWallet === 'metamask'}
-                  onClick={() => handleWalletConnect('metamask')}
-                />
-              )}
-              {providers.wallets?.includes('walletconnect') && (
-                <WalletButton
-                  name="WalletConnect"
-                  icon={<WalletConnectIcon />}
-                  disabled={isLoading}
-                  loading={connectingWallet === 'walletconnect'}
-                  onClick={() => handleWalletConnect('walletconnect')}
-                />
-              )}
-              {providers.wallets?.includes('coinbase') && (
-                <WalletButton
-                  name="Coinbase Wallet"
-                  icon={<CoinbaseIcon />}
-                  disabled={isLoading}
-                  loading={connectingWallet === 'coinbase'}
-                  onClick={() => handleWalletConnect('coinbase')}
-                />
-              )}
+          {/* Separator */}
+          <div className="mx-5" style={{
+            height: '1px',
+            background: 'linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.15), transparent)',
+          }} />
 
-              {/* Divider */}
-              {providers.social && providers.social.length > 0 && (
-                <div className="flex items-center gap-3 py-2">
-                  <div className="flex-1 h-px" style={{ background: 'rgba(34, 211, 238, 0.15)' }} />
-                  <span
-                    className="text-gray-600 text-xs uppercase tracking-widest"
-                    style={{ fontFamily: 'Orbitron, monospace' }}
-                  >
-                    or
-                  </span>
-                  <div className="flex-1 h-px" style={{ background: 'rgba(34, 211, 238, 0.15)' }} />
-                </div>
-              )}
-
-              {/* Social section label */}
-              {providers.social && providers.social.length > 0 && (
-                <p
-                  className="text-gray-500 text-xs uppercase tracking-widest mb-1 px-1"
-                  style={{ fontFamily: 'Orbitron, monospace' }}
-                >
-                  Account
-                </p>
-              )}
-
-              {/* Google login */}
-              {providers.social?.includes('google') && (
-                <button
-                  onClick={handleGoogleLogin}
-                  disabled={isLoading || !supabaseClient}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] group"
-                  style={{
-                    background: '#0f1f38',
-                    border: '1px solid rgba(34, 211, 238, 0.15)',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.4)';
-                    e.currentTarget.style.background = '#1a2f4a';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.15)';
-                    e.currentTarget.style.background = '#0f1f38';
-                  }}
-                  aria-label="Continue with Google"
-                >
-                  <GoogleIcon />
-                  <span className="text-white text-sm">Continue with Google</span>
-                  <span className="ml-auto text-gray-600 text-xs">Gmail</span>
-                </button>
-              )}
-
-              {/* Email login */}
-              {providers.social?.includes('email') && (
-                <button
-                  onClick={() => setView('email-input')}
-                  disabled={isLoading}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg font-medium transition-all duration-300 disabled:opacity-50 min-h-[44px] group"
-                  style={{
-                    background: '#0f1f38',
-                    border: '1px solid rgba(34, 211, 238, 0.15)',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.4)';
-                    e.currentTarget.style.background = '#1a2f4a';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.15)';
-                    e.currentTarget.style.background = '#0f1f38';
-                  }}
-                  aria-label="Continue with Email"
-                >
-                  <EmailIcon />
-                  <span className="text-white text-sm">Continue with Email</span>
-                  <span className="ml-auto text-gray-600 text-xs">Non-Gmail</span>
-                </button>
-              )}
-
-              {isConnecting && (
-                <div className="flex items-center justify-center gap-2 py-2 text-cyan-400 text-sm">
-                  <Spinner />
-                  <span>Confirm in your wallet...</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Email input view */}
-          {view === 'email-input' && (
-            <div className="space-y-4">
-              <button
-                onClick={() => { setView('main'); setGmailWarning(false); }}
-                className="text-cyan-400 text-sm hover:text-cyan-300 transition-colors duration-200 flex items-center gap-1"
+          {/* Content */}
+          <div className="px-6 py-5" aria-busy={isLoading}>
+            {/* Error message */}
+            {displayError && (
+              <div
+                className="mb-4 p-3 rounded-lg text-sm flex items-start gap-2.5"
+                role="alert"
+                style={{
+                  background: 'rgba(239, 68, 68, 0.08)',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  boxShadow: 'inset 0 0 20px rgba(239, 68, 68, 0.05)',
+                }}
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#f87171">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.072 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
-                Back
-              </button>
-
-              <div>
-                <label
-                  htmlFor="signakit-email"
-                  className="block text-gray-400 text-sm mb-2"
-                  style={{ fontFamily: 'Orbitron, monospace', fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase' }}
-                >
-                  Email address
-                </label>
-                <input
-                  id="signakit-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setGmailWarning(false);
-                  }}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleEmailSubmit(); }}
-                  placeholder="you@example.com"
-                  autoComplete="email"
-                  autoFocus
-                  disabled={isLoading}
-                  className="w-full rounded-lg px-4 py-3 text-white placeholder-gray-600 min-h-[44px] transition-all duration-300 focus:outline-none disabled:opacity-50"
-                  style={{
-                    background: '#0f1f38',
-                    border: gmailWarning ? '1px solid rgba(251, 146, 60, 0.5)' : '1px solid rgba(34, 211, 238, 0.2)',
-                    fontSize: '16px',
-                  }}
-                  onFocus={(e) => {
-                    if (!gmailWarning) e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.5)';
-                  }}
-                  onBlur={(e) => {
-                    if (!gmailWarning) e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.2)';
-                  }}
-                />
+                <span style={{ color: '#f87171' }}>{displayError}</span>
               </div>
+            )}
 
-              {/* Gmail warning */}
-              {gmailWarning && (
-                <div
-                  className="p-3 rounded-lg text-sm"
-                  style={{ background: 'rgba(251, 146, 60, 0.1)', border: '1px solid rgba(251, 146, 60, 0.3)' }}
-                >
-                  <p className="text-orange-400 font-medium mb-2" style={{ fontFamily: 'Orbitron, monospace', fontSize: '11px', letterSpacing: '0.05em' }}>
-                    GMAIL DETECTED
-                  </p>
-                  <p className="text-gray-300 text-sm mb-3">
-                    Gmail accounts should use <span className="text-cyan-400">Google login</span> for the best experience. Email OTP is available for non-Gmail addresses.
-                  </p>
-                  <button
-                    onClick={() => { handleGoogleLogin(); }}
-                    className="w-full py-2.5 rounded-lg font-bold tracking-widest uppercase text-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                    style={{
-                      fontFamily: 'Orbitron, monospace',
-                      background: 'linear-gradient(135deg, #FF8C00, #FFB84D)',
-                      color: '#1a1a2e',
-                      fontSize: '12px',
-                    }}
-                  >
-                    Use Google Login
-                  </button>
-                </div>
-              )}
+            {/* ---- Main view ---- */}
+            {view === 'main' && (
+              <div className="space-y-3">
+                {/* Wallet section */}
+                {providers.wallets && providers.wallets.length > 0 && (
+                  <SectionLabel text="Wallet" />
+                )}
 
-              {!gmailWarning && (
-                <button
-                  onClick={handleEmailSubmit}
-                  disabled={isLoading || !email}
-                  className="w-full py-3 rounded-lg font-bold tracking-widest uppercase min-h-[44px] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                  style={{
-                    fontFamily: 'Orbitron, monospace',
-                    background: 'linear-gradient(135deg, #FF8C00, #FFB84D)',
-                    color: '#1a1a2e',
-                    fontSize: '13px',
-                  }}
-                >
-                  {isLoading ? <Spinner color="#1a1a2e" /> : 'Send Code'}
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Email verify view */}
-          {view === 'email-verify' && (
-            <div className="space-y-4">
-              <button
-                onClick={() => { setView('email-input'); setOtpDigits(['', '', '', '', '', '']); }}
-                className="text-cyan-400 text-sm hover:text-cyan-300 transition-colors duration-200 flex items-center gap-1"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-                Back
-              </button>
-
-              <div className="text-center">
-                <p
-                  className="text-gray-500 text-xs uppercase tracking-widest mb-2"
-                  style={{ fontFamily: 'Orbitron, monospace' }}
-                >
-                  Verification Code
-                </p>
-                <p className="text-gray-300 text-sm">
-                  Enter the 6-digit code sent to{' '}
-                  <span className="text-cyan-400" style={{ fontFamily: 'JetBrains Mono, monospace' }}>{email}</span>
-                </p>
-              </div>
-
-              {/* OTP inputs */}
-              <div className="flex gap-2 justify-center" onPaste={handleOtpPaste}>
-                {otpDigits.map((digit, i) => (
-                  <input
-                    key={i}
-                    ref={(el) => { inputRefs.current[i] = el; }}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleOtpInput(i, e.target.value)}
-                    onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                    autoFocus={i === 0}
+                {providers.wallets?.includes('metamask') && (
+                  <HUDButton
+                    icon={<MetaMaskIcon />}
+                    label="MetaMask"
                     disabled={isLoading}
-                    className="w-11 h-12 text-center text-xl text-white rounded-lg transition-all duration-200 focus:outline-none disabled:opacity-50"
-                    style={{
-                      fontFamily: 'JetBrains Mono, monospace',
-                      background: '#0f1f38',
-                      border: digit ? '1px solid rgba(34, 211, 238, 0.5)' : '1px solid rgba(34, 211, 238, 0.2)',
-                      boxShadow: digit ? '0 0 10px rgba(34, 211, 238, 0.1)' : 'none',
-                    }}
-                    onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.6)'; }}
-                    onBlur={(e) => { e.currentTarget.style.borderColor = digit ? 'rgba(34, 211, 238, 0.5)' : 'rgba(34, 211, 238, 0.2)'; }}
-                    aria-label={`Digit ${i + 1} of 6`}
+                    loading={connectingWallet === 'metamask'}
+                    onClick={() => handleWalletConnect('metamask')}
                   />
-                ))}
-              </div>
+                )}
+                {providers.wallets?.includes('walletconnect') && (
+                  <HUDButton
+                    icon={<WalletConnectIcon />}
+                    label="WalletConnect"
+                    disabled={isLoading}
+                    loading={connectingWallet === 'walletconnect'}
+                    onClick={() => handleWalletConnect('walletconnect')}
+                  />
+                )}
+                {providers.wallets?.includes('coinbase') && (
+                  <HUDButton
+                    icon={<CoinbaseIcon />}
+                    label="Coinbase Wallet"
+                    disabled={isLoading}
+                    loading={connectingWallet === 'coinbase'}
+                    onClick={() => handleWalletConnect('coinbase')}
+                  />
+                )}
 
-              {/* Resend */}
-              <div className="text-center">
-                {resendTimer > 0 ? (
-                  <p className="text-gray-500 text-sm">
-                    Resend in <span style={{ fontFamily: 'JetBrains Mono, monospace' }}>{resendTimer}s</span>
-                  </p>
-                ) : (
-                  <button
-                    onClick={() => { handleEmailSubmit(); setResendTimer(60); }}
-                    className="text-cyan-400 text-sm hover:text-cyan-300 transition-colors duration-200"
-                  >
-                    Resend code
-                  </button>
+                {/* Divider */}
+                {providers.social && providers.social.length > 0 && (
+                  <div className="flex items-center gap-3 py-1">
+                    <div className="flex-1" style={{ height: '1px', background: 'linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.12), transparent)' }} />
+                    <span
+                      className="text-gray-600 uppercase"
+                      style={{ fontFamily: 'Orbitron, monospace', fontSize: '10px', letterSpacing: '0.15em' }}
+                    >
+                      or
+                    </span>
+                    <div className="flex-1" style={{ height: '1px', background: 'linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.12), transparent)' }} />
+                  </div>
+                )}
+
+                {/* Account section */}
+                {providers.social && providers.social.length > 0 && (
+                  <SectionLabel text="Account" />
+                )}
+
+                {providers.social?.includes('google') && (
+                  <HUDButton
+                    icon={<GoogleIcon />}
+                    label="Continue with Google"
+                    hint="Gmail"
+                    disabled={isLoading || !supabaseClient}
+                    onClick={handleGoogleLogin}
+                  />
+                )}
+                {providers.social?.includes('email') && (
+                  <HUDButton
+                    icon={<EmailIcon />}
+                    label="Continue with Email"
+                    hint="Non-Gmail"
+                    disabled={isLoading}
+                    onClick={() => setView('email-input')}
+                  />
+                )}
+
+                {/* Connecting status */}
+                {isConnecting && (
+                  <div className="flex items-center justify-center gap-2.5 py-3">
+                    <Spinner />
+                    <span className="text-sm" style={{ color: '#22d3ee', fontFamily: 'Inter, sans-serif' }}>
+                      Confirm in your wallet...
+                    </span>
+                  </div>
                 )}
               </div>
+            )}
 
-              {isLoading && (
-                <div className="flex items-center justify-center gap-2 text-cyan-400 text-sm">
-                  <Spinner />
-                  <span>Verifying...</span>
+            {/* ---- Email input view ---- */}
+            {view === 'email-input' && (
+              <div className="space-y-4">
+                <BackButton onClick={() => { setView('main'); setGmailWarning(false); }} />
+
+                <div>
+                  <label
+                    htmlFor="signakit-email"
+                    className="block mb-2"
+                    style={{ fontFamily: 'Orbitron, monospace', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(156, 163, 175, 0.7)' }}
+                  >
+                    Email address
+                  </label>
+                  <input
+                    id="signakit-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); setGmailWarning(false); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleEmailSubmit(); }}
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    autoFocus
+                    disabled={isLoading}
+                    className="w-full rounded-lg px-4 py-3 text-white placeholder-gray-600 min-h-[44px] transition-all duration-300 focus:outline-none disabled:opacity-50"
+                    style={{
+                      fontFamily: 'Inter, sans-serif',
+                      background: 'rgba(15, 31, 56, 0.6)',
+                      border: gmailWarning ? '1px solid rgba(251, 146, 60, 0.5)' : '1px solid rgba(34, 211, 238, 0.15)',
+                      fontSize: '16px',
+                      boxShadow: 'inset 0 0 20px rgba(0, 0, 0, 0.2)',
+                    }}
+                    onFocus={(e) => {
+                      if (!gmailWarning) {
+                        e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.4)';
+                        e.currentTarget.style.boxShadow = 'inset 0 0 20px rgba(0, 0, 0, 0.2), 0 0 12px rgba(34, 211, 238, 0.08)';
+                      }
+                    }}
+                    onBlur={(e) => {
+                      if (!gmailWarning) {
+                        e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.15)';
+                        e.currentTarget.style.boxShadow = 'inset 0 0 20px rgba(0, 0, 0, 0.2)';
+                      }
+                    }}
+                  />
                 </div>
-              )}
-            </div>
-          )}
-        </div>
 
-        {/* Footer */}
-        <div
-          className="px-5 py-3 text-center"
-          style={{
-            background: '#0F0F23',
-            borderTop: '1px solid rgba(34, 211, 238, 0.08)',
-          }}
-        >
-          <p className="text-gray-600 text-xs" style={{ fontFamily: 'Orbitron, monospace', fontSize: '10px', letterSpacing: '0.15em' }}>
-            Secured by SignaKit
-          </p>
+                {/* Gmail warning */}
+                {gmailWarning && (
+                  <div
+                    className="p-4 rounded-lg"
+                    style={{
+                      background: 'rgba(251, 146, 60, 0.06)',
+                      border: '1px solid rgba(251, 146, 60, 0.2)',
+                      boxShadow: 'inset 0 0 20px rgba(251, 146, 60, 0.03)',
+                    }}
+                  >
+                    <p className="font-medium mb-2" style={{ fontFamily: 'Orbitron, monospace', fontSize: '10px', letterSpacing: '0.1em', color: '#FB923C' }}>
+                      GMAIL DETECTED
+                    </p>
+                    <p className="text-gray-300 text-sm mb-3" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      Gmail accounts should use <span style={{ color: '#22d3ee' }}>Google login</span> for the best experience.
+                    </p>
+                    <CTAButton onClick={handleGoogleLogin} text="Use Google Login" />
+                  </div>
+                )}
+
+                {!gmailWarning && (
+                  <CTAButton
+                    onClick={handleEmailSubmit}
+                    disabled={isLoading || !email}
+                    text={isLoading ? undefined : 'Send Code'}
+                    loading={isLoading}
+                  />
+                )}
+              </div>
+            )}
+
+            {/* ---- Email verify view ---- */}
+            {view === 'email-verify' && (
+              <div className="space-y-5">
+                <BackButton onClick={() => { setView('email-input'); setOtpDigits(['', '', '', '', '', '']); }} />
+
+                <div className="text-center">
+                  <SectionLabel text="Verification Code" center />
+                  <p className="text-gray-400 text-sm mt-2" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    Enter the 6-digit code sent to{' '}
+                    <span style={{ color: '#22d3ee', fontFamily: 'JetBrains Mono, monospace' }}>{email}</span>
+                  </p>
+                </div>
+
+                {/* OTP inputs */}
+                <div className="flex gap-2.5 justify-center" onPaste={handleOtpPaste}>
+                  {otpDigits.map((digit, i) => (
+                    <input
+                      key={i}
+                      ref={(el) => { inputRefs.current[i] = el; }}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={(e) => handleOtpInput(i, e.target.value)}
+                      onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                      autoFocus={i === 0}
+                      disabled={isLoading}
+                      className="w-11 h-12 text-center text-xl text-white rounded-lg transition-all duration-200 focus:outline-none disabled:opacity-50"
+                      style={{
+                        fontFamily: 'JetBrains Mono, monospace',
+                        background: 'rgba(15, 31, 56, 0.6)',
+                        border: digit ? '1px solid rgba(34, 211, 238, 0.5)' : '1px solid rgba(34, 211, 238, 0.15)',
+                        boxShadow: digit ? '0 0 12px rgba(34, 211, 238, 0.1), inset 0 0 10px rgba(34, 211, 238, 0.05)' : 'inset 0 0 10px rgba(0, 0, 0, 0.2)',
+                      }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.5)';
+                        e.currentTarget.style.boxShadow = '0 0 12px rgba(34, 211, 238, 0.12), inset 0 0 10px rgba(34, 211, 238, 0.05)';
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = digit ? 'rgba(34, 211, 238, 0.5)' : 'rgba(34, 211, 238, 0.15)';
+                        e.currentTarget.style.boxShadow = digit ? '0 0 12px rgba(34, 211, 238, 0.1), inset 0 0 10px rgba(34, 211, 238, 0.05)' : 'inset 0 0 10px rgba(0, 0, 0, 0.2)';
+                      }}
+                      aria-label={`Digit ${i + 1} of 6`}
+                    />
+                  ))}
+                </div>
+
+                {/* Resend */}
+                <div className="text-center">
+                  {resendTimer > 0 ? (
+                    <p className="text-gray-500 text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      Resend in <span style={{ fontFamily: 'JetBrains Mono, monospace', color: '#22d3ee' }}>{resendTimer}s</span>
+                    </p>
+                  ) : (
+                    <button
+                      onClick={() => { handleEmailSubmit(); setResendTimer(60); }}
+                      className="text-sm transition-colors duration-200"
+                      style={{ color: '#22d3ee', fontFamily: 'Inter, sans-serif' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = '#67e8f9'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = '#22d3ee'; }}
+                    >
+                      Resend code
+                    </button>
+                  )}
+                </div>
+
+                {isLoading && (
+                  <div className="flex items-center justify-center gap-2.5">
+                    <Spinner />
+                    <span className="text-sm" style={{ color: '#22d3ee', fontFamily: 'Inter, sans-serif' }}>Verifying...</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="px-6 py-3 text-center" style={{ borderTop: '1px solid rgba(34, 211, 238, 0.06)' }}>
+            <p style={{
+              fontFamily: 'Orbitron, monospace',
+              fontSize: '9px',
+              letterSpacing: '0.2em',
+              color: 'rgba(107, 114, 128, 0.4)',
+              textTransform: 'uppercase',
+            }}>
+              Secured by SignaKit
+            </p>
+          </div>
+
+          {/* Bottom edge accent */}
+          <div style={{
+            position: 'absolute', bottom: 0, left: '20%', right: '20%', height: '1px',
+            background: 'linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.2), transparent)',
+          }} />
         </div>
       </div>
 
       <style>{`
-        @keyframes signakit-modal-in {
+        @keyframes sk-modal-in {
           from { opacity: 0; transform: scale(0.92) translateY(-12px); }
           to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes sk-glow-pulse {
+          0%, 100% { opacity: 0.4; }
+          50% { opacity: 1; }
         }
       `}</style>
     </div>
   );
 }
 
-// -- Sub-components --
 
-function CornerAccents() {
-  const accentStyle = (position: Record<string, string>): React.CSSProperties => ({
-    position: 'absolute',
-    width: '12px',
-    height: '12px',
-    zIndex: 10,
-    ...position,
-  });
+// ============================================================
+// Sub-components
+// ============================================================
+
+function HUDCorners() {
+  const Corner = ({ top, right, bottom, left }: { top?: boolean; right?: boolean; bottom?: boolean; left?: boolean }) => {
+    const y = top ? '0' : undefined;
+    const x = left ? '0' : undefined;
+    const yB = bottom ? '0' : undefined;
+    const xR = right ? '0' : undefined;
+
+    return (
+      <span style={{
+        position: 'absolute',
+        top: y, bottom: yB, left: x, right: xR,
+        width: '16px', height: '16px', zIndex: 10, pointerEvents: 'none',
+      }}>
+        {/* Horizontal line */}
+        <span style={{
+          position: 'absolute',
+          [top ? 'top' : 'bottom']: 0,
+          [left ? 'left' : 'right']: 0,
+          width: '16px', height: '1px',
+          background: 'rgba(34, 211, 238, 0.5)',
+        }} />
+        {/* Vertical line */}
+        <span style={{
+          position: 'absolute',
+          [top ? 'top' : 'bottom']: 0,
+          [left ? 'left' : 'right']: 0,
+          width: '1px', height: '16px',
+          background: 'rgba(34, 211, 238, 0.5)',
+        }} />
+        {/* Glow dot at corner intersection */}
+        <span style={{
+          position: 'absolute',
+          [top ? 'top' : 'bottom']: '-1px',
+          [left ? 'left' : 'right']: '-1px',
+          width: '3px', height: '3px',
+          borderRadius: '50%',
+          background: '#22d3ee',
+          boxShadow: '0 0 6px rgba(34, 211, 238, 0.8)',
+          animation: 'sk-glow-pulse 3s ease-in-out infinite',
+        }} />
+      </span>
+    );
+  };
 
   return (
     <>
-      {/* Top-left */}
-      <span style={accentStyle({ top: '0', left: '0' })}>
-        <span style={{ position: 'absolute', top: 0, left: 0, width: '12px', height: '1px', background: 'rgba(34, 211, 238, 0.6)' }} />
-        <span style={{ position: 'absolute', top: 0, left: 0, width: '1px', height: '12px', background: 'rgba(34, 211, 238, 0.6)' }} />
-      </span>
-      {/* Top-right */}
-      <span style={accentStyle({ top: '0', right: '0' })}>
-        <span style={{ position: 'absolute', top: 0, right: 0, width: '12px', height: '1px', background: 'rgba(34, 211, 238, 0.6)' }} />
-        <span style={{ position: 'absolute', top: 0, right: 0, width: '1px', height: '12px', background: 'rgba(34, 211, 238, 0.6)' }} />
-      </span>
-      {/* Bottom-left */}
-      <span style={accentStyle({ bottom: '0', left: '0' })}>
-        <span style={{ position: 'absolute', bottom: 0, left: 0, width: '12px', height: '1px', background: 'rgba(34, 211, 238, 0.6)' }} />
-        <span style={{ position: 'absolute', bottom: 0, left: 0, width: '1px', height: '12px', background: 'rgba(34, 211, 238, 0.6)' }} />
-      </span>
-      {/* Bottom-right */}
-      <span style={accentStyle({ bottom: '0', right: '0' })}>
-        <span style={{ position: 'absolute', bottom: 0, right: 0, width: '12px', height: '1px', background: 'rgba(34, 211, 238, 0.6)' }} />
-        <span style={{ position: 'absolute', bottom: 0, right: 0, width: '1px', height: '12px', background: 'rgba(34, 211, 238, 0.6)' }} />
-      </span>
+      <Corner top left />
+      <Corner top right />
+      <Corner bottom left />
+      <Corner bottom right />
     </>
   );
 }
 
-function WalletButton({ name, icon, disabled, loading, onClick }: {
-  name: string;
+function SectionLabel({ text, center }: { text: string; center?: boolean }) {
+  return (
+    <p
+      className="px-0.5 mb-1"
+      style={{
+        fontFamily: 'Orbitron, monospace',
+        fontSize: '10px',
+        letterSpacing: '0.15em',
+        textTransform: 'uppercase',
+        color: 'rgba(156, 163, 175, 0.5)',
+        textAlign: center ? 'center' : 'left',
+      }}
+    >
+      {text}
+    </p>
+  );
+}
+
+function HUDButton({ icon, label, hint, disabled, loading, onClick }: {
   icon: ReactNode;
-  disabled: boolean;
+  label: string;
+  hint?: string;
+  disabled?: boolean;
   loading?: boolean;
   onClick: () => void;
 }) {
@@ -600,35 +639,111 @@ function WalletButton({ name, icon, disabled, loading, onClick }: {
     <button
       onClick={onClick}
       disabled={disabled}
-      className="w-full flex items-center gap-4 p-3 rounded-lg transition-all duration-300 disabled:opacity-50 min-h-[44px] group"
+      className="w-full flex items-center gap-3.5 px-4 py-3 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed min-h-[48px] group"
       style={{
-        background: '#0f1f38',
-        border: '1px solid rgba(34, 211, 238, 0.15)',
+        background: 'rgba(15, 31, 56, 0.5)',
+        border: '1px solid rgba(34, 211, 238, 0.1)',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.4)';
-        e.currentTarget.style.background = '#1a2f4a';
+        if (!disabled) {
+          e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.35)';
+          e.currentTarget.style.background = 'rgba(15, 31, 56, 0.8)';
+          e.currentTarget.style.boxShadow = '0 0 20px rgba(34, 211, 238, 0.06), inset 0 0 20px rgba(34, 211, 238, 0.03)';
+          e.currentTarget.style.transform = 'translateY(-1px)';
+        }
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.15)';
-        e.currentTarget.style.background = '#0f1f38';
+        e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.1)';
+        e.currentTarget.style.background = 'rgba(15, 31, 56, 0.5)';
+        e.currentTarget.style.boxShadow = 'none';
+        e.currentTarget.style.transform = 'translateY(0)';
       }}
-      aria-label={`Connect with ${name}`}
+      aria-label={label}
     >
-      <span className="w-7 h-7 flex items-center justify-center">{icon}</span>
-      <span className="text-white text-sm group-hover:text-cyan-400 transition-colors duration-200 font-medium">{name}</span>
+      <span className="w-7 h-7 flex items-center justify-center shrink-0">{icon}</span>
+      <span
+        className="text-sm font-medium transition-colors duration-200"
+        style={{ fontFamily: 'Inter, sans-serif', color: loading ? '#22d3ee' : 'white' }}
+      >
+        {label}
+      </span>
+      {hint && (
+        <span className="ml-auto text-xs shrink-0" style={{ color: 'rgba(107, 114, 128, 0.5)', fontFamily: 'Orbitron, monospace', fontSize: '9px', letterSpacing: '0.05em' }}>
+          {hint}
+        </span>
+      )}
       {loading ? (
-        <span className="ml-auto"><Spinner size={16} /></span>
-      ) : (
-        <svg className="ml-auto w-4 h-4 text-gray-600 group-hover:text-cyan-400 transition-colors duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <span className="ml-auto shrink-0"><Spinner size={16} /></span>
+      ) : !hint ? (
+        <svg className="ml-auto w-4 h-4 shrink-0 transition-all duration-200" style={{ color: 'rgba(107, 114, 128, 0.4)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
         </svg>
-      )}
+      ) : null}
     </button>
   );
 }
 
-function Spinner({ color = 'rgba(34, 211, 238, 0.9)', size = 20 }: { color?: string; size?: number }) {
+function CTAButton({ onClick, disabled, text, loading }: {
+  onClick: () => void;
+  disabled?: boolean;
+  text?: string;
+  loading?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full py-3 rounded-lg min-h-[48px] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+      style={{
+        fontFamily: 'Orbitron, monospace',
+        fontSize: '12px',
+        letterSpacing: '0.15em',
+        textTransform: 'uppercase',
+        fontWeight: 700,
+        background: 'linear-gradient(135deg, #FF8C00, #FFB84D)',
+        color: '#1a1a2e',
+        boxShadow: '0 0 20px rgba(255, 140, 0, 0.15)',
+      }}
+      onMouseEnter={(e) => {
+        if (!disabled) {
+          e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+          e.currentTarget.style.boxShadow = '0 0 30px rgba(255, 140, 0, 0.3)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'translateY(0) scale(1)';
+        e.currentTarget.style.boxShadow = '0 0 20px rgba(255, 140, 0, 0.15)';
+      }}
+      onMouseDown={(e) => {
+        if (!disabled) e.currentTarget.style.transform = 'scale(0.97)';
+      }}
+      onMouseUp={(e) => {
+        if (!disabled) e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+      }}
+    >
+      {loading ? <Spinner color="#1a1a2e" /> : text && <span>{'< '}{text}{' >'}</span>}
+    </button>
+  );
+}
+
+function BackButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-1.5 text-sm transition-colors duration-200"
+      style={{ color: 'rgba(34, 211, 238, 0.7)', fontFamily: 'Inter, sans-serif' }}
+      onMouseEnter={(e) => { e.currentTarget.style.color = '#22d3ee'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(34, 211, 238, 0.7)'; }}
+    >
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+      </svg>
+      Back
+    </button>
+  );
+}
+
+function Spinner({ color = 'rgba(34, 211, 238, 0.9)', size = 18 }: { color?: string; size?: number }) {
   return (
     <svg
       className="animate-spin"
@@ -636,13 +751,16 @@ function Spinner({ color = 'rgba(34, 211, 238, 0.9)', size = 20 }: { color?: str
       fill="none"
       viewBox="0 0 24 24"
     >
-      <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke={color} strokeWidth="4" />
-      <path style={{ opacity: 0.75 }} fill={color} d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+      <circle style={{ opacity: 0.2 }} cx="12" cy="12" r="10" stroke={color} strokeWidth="3" />
+      <path style={{ opacity: 0.85 }} fill={color} d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
     </svg>
   );
 }
 
-// -- Icons (inline SVG to avoid external deps) --
+
+// ============================================================
+// Icons (inline SVG)
+// ============================================================
 
 function GoogleIcon() {
   return (
@@ -657,7 +775,7 @@ function GoogleIcon() {
 
 function EmailIcon() {
   return (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="rgba(34, 211, 238, 0.8)">
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="rgba(34, 211, 238, 0.7)">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
     </svg>
   );
