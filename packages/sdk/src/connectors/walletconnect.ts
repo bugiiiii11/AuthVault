@@ -1,17 +1,17 @@
 /**
  * WalletConnect v2 connector.
- * Uses @walletconnect/modal for QR code display.
+ * Renders QR code in our own UI instead of relying on @reown/appkit modal.
  */
 import type { WalletConnector, ConnectedWallet } from './types';
 
 interface WalletConnectOptions {
   projectId: string;
   chains?: number[];
+  onDisplayUri?: (uri: string) => void;
 }
 
 export function createWalletConnectConnector(options: WalletConnectOptions): WalletConnector {
   let provider: any = null;
-  let modal: any = null;
 
   async function getProvider() {
     if (provider) return provider;
@@ -22,8 +22,13 @@ export function createWalletConnectConnector(options: WalletConnectOptions): Wal
     provider = await EthereumProvider.init({
       projectId: options.projectId,
       chains: options.chains || [1], // Default to mainnet
-      showQrModal: true,
+      showQrModal: false, // We render our own QR code
       optionalChains: [137, 56, 42161, 10, 8453], // Polygon, BSC, Arbitrum, Optimism, Base
+    });
+
+    // Emit the pairing URI so the UI can show a QR code
+    provider.on('display_uri', (uri: string) => {
+      options.onDisplayUri?.(uri);
     });
 
     return provider;
@@ -40,7 +45,6 @@ export function createWalletConnectConnector(options: WalletConnectOptions): Wal
     async connect(): Promise<ConnectedWallet> {
       const wc = await getProvider();
 
-      // Enable will show the QR modal
       const accounts = await wc.enable();
 
       if (!accounts || accounts.length === 0) {

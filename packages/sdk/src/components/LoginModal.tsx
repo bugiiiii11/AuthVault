@@ -4,6 +4,7 @@
  * social logins (Google, Email OTP).
  */
 import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import QRCode from 'qrcode';
 import { useAuth } from '../hooks/useAuth';
 import { useWallet } from '../hooks/useWallet';
 import { useSignaKitContext } from '../SignaKitProvider';
@@ -41,7 +42,7 @@ export function LoginModal({
   subtitle = 'Sign in with your wallet or account',
 }: LoginModalProps) {
   const { status, user, error, sendEmailCode, verifyEmailCode } = useAuth();
-  const { connect, isConnecting, error: walletError } = useWallet();
+  const { connect, isConnecting, error: walletError, wcUri } = useWallet();
   const { supabaseClient } = useSignaKitContext();
   const [view, setView] = useState<LoginView>('main');
   const [email, setEmail] = useState('');
@@ -345,11 +346,15 @@ export function LoginModal({
                 </button>
               )}
 
-              {isConnecting && (
+              {isConnecting && !wcUri && (
                 <div className="flex items-center justify-center gap-2 py-2 text-cyan-400 text-sm">
                   <Spinner />
                   <span>Confirm in your wallet...</span>
                 </div>
+              )}
+
+              {wcUri && (
+                <WalletConnectQR uri={wcUri} />
               )}
             </div>
           )}
@@ -639,6 +644,55 @@ function Spinner({ color = 'rgba(34, 211, 238, 0.9)', size = 20 }: { color?: str
       <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke={color} strokeWidth="4" />
       <path style={{ opacity: 0.75 }} fill={color} d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
     </svg>
+  );
+}
+
+function WalletConnectQR({ uri }: { uri: string }) {
+  const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    QRCode.toDataURL(uri, {
+      width: 220,
+      margin: 2,
+      color: { dark: '#22d3ee', light: '#0F0F23' },
+    }).then(setDataUrl).catch(() => {});
+  }, [uri]);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(uri).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-3 py-2">
+      <p
+        className="text-gray-500 text-xs uppercase tracking-widest"
+        style={{ fontFamily: 'Orbitron, monospace' }}
+      >
+        Scan with your wallet
+      </p>
+      {dataUrl ? (
+        <div className="rounded-lg p-2" style={{ background: '#0f1f38', border: '1px solid rgba(34, 211, 238, 0.2)' }}>
+          <img src={dataUrl} alt="WalletConnect QR Code" className="rounded" style={{ width: 220, height: 220 }} />
+        </div>
+      ) : (
+        <div className="flex items-center justify-center" style={{ width: 220, height: 220 }}>
+          <Spinner />
+        </div>
+      )}
+      <button
+        onClick={handleCopy}
+        className="text-cyan-400 text-xs hover:text-cyan-300 transition-colors duration-200 flex items-center gap-1"
+      >
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+        {copied ? 'Copied!' : 'Copy link'}
+      </button>
+    </div>
   );
 }
 
