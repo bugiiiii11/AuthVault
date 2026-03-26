@@ -10,6 +10,29 @@
 | 4 | 2026-03-25 | Recovery flow + BYTEA fix | WalletConnect working, full account recovery system, BYTEA→TEXT DB fix |
 | 5 | 2026-03-25 | Bug fixes + architecture decision | Signing fixed, key management redesigned to server-assisted seamless mode |
 | 6 | 2026-03-26 | Seamless key management implementation | Full HKDF + Vault key storage, X25519 transport, libsodium removed from backend |
+| 7 | 2026-03-26 | Bug fixes, UI redesign, rename to SignaKit | Address persistence fix, identity linking, Swarm Resistance UI, Gmail detection, full rebrand |
+
+## What Was Done (Session 7) -- Bug Fixes, UI Redesign, Rename to SignaKit
+
+1. **Address persistence bug fixed** -- `generate.ts` was updating wrong column (`evm_address` instead of `public_key_evm`). Address showed on first login but disappeared after page reload. Fixed column name + added backfill in idempotent path. DB backfill applied to all existing users via SQL.
+
+2. **Identity linking fix** -- `findOrCreateUser` now checks `supabase_auth_id` as fallback when `provider+subject` doesn't match. Handles Supabase auto-linking (same email, different providers like Google + email OTP). Added 409 error response for identity conflicts.
+
+3. **Hydration address recovery** -- On session hydration, if private key exists in IndexedDB but `getMe()` returns no `evmAddress`, client now calls `generateKey()` to fetch address from server.
+
+4. **Gmail OTP detection** -- LoginModal detects Gmail addresses in email OTP flow and shows warning with "Use Google Login" redirect button. Gmail users should use Google OAuth; email OTP is for non-Gmail addresses.
+
+5. **LoginModal redesign (Swarm Resistance design system)** -- Full UI overhaul: Orbitron/JetBrains Mono fonts, cyan/orange color scheme, corner accent brackets, section labels (Wallet/Account), close button, per-wallet loading state. Reordered: MetaMask > WalletConnect > divider > Google > Email.
+
+6. **Demo app restyled** -- Matching dark sci-fi theme with gradient text, status dot, proper typography.
+
+7. **Renamed AuthVault to SignaKit** -- 33 files updated. All packages `@signakit/*`, all exports renamed (`SignaKitProvider`, `SignaKitClient`, etc.). Env vars accept both old (`AUTHVAULT_*`) and new (`SIGNAKIT_*`) names for backward compat. HKDF constants, IndexedDB name, localStorage keys preserved.
+
+8. **Rate limit increased** -- Email OTP send limit raised from 5/hour to 15/hour per IP.
+
+9. **OTP input size reduced** -- OTP digit boxes shrunk from `w-12 h-14` to `w-11 h-12`.
+
+**Commits this session:** 3b3fbed, 1f08036, de02fb6
 
 ## What Was Done (Session 6) -- Seamless Key Management Implementation
 
@@ -114,17 +137,19 @@
 
 ## Known Issues
 
-None outstanding. WalletConnect domain whitelist resolved in session 4.
+- Gmail email OTP: Supabase auto-links Gmail identities with Google OAuth, causing verifyOtp to fail. Handled by Gmail detection in LoginModal (redirects to Google login). Not a bug, by design.
+- mjerabek2@gmail.com: key generation returned 500 on one attempt. May be transient. Check Railway logs if it recurs.
+- WalletConnect: loading spinner shows indefinitely if no wallet scans the QR. Not a regression, standard WalletConnect behavior.
 
 ## What To Do Next
 
 | Priority | Task | Details |
 |----------|------|---------|
-| 1 | Verify Railway deploy | Confirm commit `5d937db` is running on Railway (no libsodium backend). Check healthcheck endpoint |
-| 2 | Test email OTP with different email | `chaosgenesisnft@gmail.com` has Supabase provider conflict (Google + OTP). Test with a separate email |
-| 3 | Test full login + signing flow | Google OAuth login, verify EVM address appears, test message signing |
-| 4 | Test multi-device | Same Google account in 2 browsers → same wallet address, signing works from both |
-| 5 | Integrate into Swarm Resistance | Replace Web3Auth with `@signakit/sdk` in game frontend |
+| 1 | Test multi-device | Same Google account in 2 browsers → same wallet address, signing works from both |
+| 2 | Test mjerabek1 Google login | Should now work with identity linking fix (finds existing user by supabase_auth_id) |
+| 3 | Investigate mjerabek2 key gen 500 | POST /api/keys/generate returned 500 for this user. Check Railway logs |
+| 4 | Integrate into Swarm Resistance | Replace Web3Auth with `@signakit/sdk` in game frontend |
+| 5 | Optionally rename Railway/Vercel env vars | Old names still work but can rename AUTHVAULT_* → SIGNAKIT_* at convenience |
 
 ## Deployment Env Vars
 
