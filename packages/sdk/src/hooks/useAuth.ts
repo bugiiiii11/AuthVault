@@ -1,11 +1,11 @@
 import { useCallback, useState } from 'react';
-import { useAuthVaultContext } from '../AuthVaultProvider';
+import { useSignaKitContext } from '../SignaKitProvider';
 import { clearSession } from '../core/session';
-import type { OAuthProvider, WalletProvider } from '@authvault/types';
+import type { OAuthProvider, WalletProvider } from '@signakit/types';
 
 export interface UseAuthReturn {
   status: 'idle' | 'loading' | 'authenticated' | 'unauthenticated';
-  user: ReturnType<typeof useAuthVaultContext>['state']['user'];
+  user: ReturnType<typeof useSignaKitContext>['state']['user'];
   error: string | null;
   login: (provider: OAuthProvider, options?: LoginOptions) => Promise<void>;
   connectWallet: (provider: WalletProvider) => Promise<void>;
@@ -20,7 +20,7 @@ interface LoginOptions {
 }
 
 export function useAuth(): UseAuthReturn {
-  const { client, state, setState, deviceId, handleAuthResponse, supabaseClient } = useAuthVaultContext();
+  const { client, state, setState, deviceId, handleAuthResponse, supabaseClient } = useSignaKitContext();
   const [error, setError] = useState<string | null>(null);
 
   const login = useCallback(async (provider: OAuthProvider, options?: LoginOptions) => {

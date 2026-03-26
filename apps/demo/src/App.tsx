@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useAuth, useSigning, LoginModal } from '@authvault/sdk';
+import { useAuth, useSigning, LoginModal } from '@signakit/sdk';
 
 export default function App() {
   const { status, user, logout } = useAuth();
@@ -16,7 +16,7 @@ export default function App() {
     setSigError(null);
 
     try {
-      const message = `AuthVault sign test\nAddress: ${user.evmAddress}\nTimestamp: ${Date.now()}`;
+      const message = `SignaKit sign test\nAddress: ${user.evmAddress}\nTimestamp: ${Date.now()}`;
       const msgBytes = new TextEncoder().encode(message);
       const hashBuffer = await crypto.subtle.digest('SHA-256', msgBytes);
       const msgHash = new Uint8Array(hashBuffer);
@@ -50,7 +50,7 @@ export default function App() {
               textShadow: 'none',
             }}
           >
-            AuthVault
+            SignaKit
           </h1>
           <p
             className="text-xs tracking-widest uppercase text-gray-500"
@@ -206,7 +206,7 @@ export default function App() {
             color: 'rgba(107, 114, 128, 0.5)',
           }}
         >
-          AuthVault MVP v0.1.0
+          SignaKit v0.1.0
         </p>
       </div>
 

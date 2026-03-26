@@ -2,8 +2,9 @@
  * Stores and retrieves the user's full private key in IndexedDB.
  * The key is XChaCha20-encrypted with the per-user encryption key before storage.
  *
- * Uses the same 'authvault' IndexedDB database and 'shares' object store as
- * deviceShare.ts, with a 'private-key:' key prefix to avoid collisions.
+ * Uses the same 'authvault' IndexedDB database (name kept for backward compat)
+ * and 'shares' object store as deviceShare.ts, with a 'private-key:' key prefix
+ * to avoid collisions.
  */
 import { encrypt, decrypt } from '../crypto/encryption';
 import { getOrCreateEncryptionKey } from './deviceShare';

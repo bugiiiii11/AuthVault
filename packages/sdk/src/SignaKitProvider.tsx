@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback, type ReactNode } from 'react';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { AuthState, AuthUser, AuthResponse } from '@authvault/types';
-import { AuthVaultClient } from './core/client';
+import type { AuthState, AuthUser, AuthResponse } from '@signakit/types';
+import { SignaKitClient } from './core/client';
 import { loadSession, loadUser, saveSession, saveUser, clearSession, getDeviceId } from './core/session';
 import { storePrivateKey, hasPrivateKey } from './core/privateKeyStore';
 
@@ -95,7 +95,7 @@ async function unsealPrivateKey(
   return new Uint8Array(decrypted);
 }
 
-export interface AuthVaultConfig {
+export interface SignaKitConfig {
   backendUrl: string;
   chains: ('evm' | 'solana')[];
   walletConnectProjectId?: string;
@@ -104,9 +104,9 @@ export interface AuthVaultConfig {
   theme?: Record<string, unknown>;
 }
 
-export interface AuthVaultContextValue {
-  config: AuthVaultConfig;
-  client: AuthVaultClient;
+export interface SignaKitContextValue {
+  config: SignaKitConfig;
+  client: SignaKitClient;
   state: AuthState;
   setState: (state: AuthState | ((prev: AuthState) => AuthState)) => void;
   deviceId: string;
@@ -114,15 +114,15 @@ export interface AuthVaultContextValue {
   handleAuthResponse: (res: AuthResponse) => Promise<void>;
 }
 
-const AuthVaultContext = createContext<AuthVaultContextValue | null>(null);
+const SignaKitContext = createContext<SignaKitContextValue | null>(null);
 
-export function useAuthVaultContext() {
-  const ctx = useContext(AuthVaultContext);
-  if (!ctx) throw new Error('useAuthVaultContext must be used within AuthVaultProvider');
+export function useSignaKitContext() {
+  const ctx = useContext(SignaKitContext);
+  if (!ctx) throw new Error('useSignaKitContext must be used within SignaKitProvider');
   return ctx;
 }
 
-interface AuthVaultProviderProps {
+interface SignaKitProviderProps {
   children: ReactNode;
   backendUrl: string;
   chains?: ('evm' | 'solana')[];
@@ -132,7 +132,7 @@ interface AuthVaultProviderProps {
   theme?: Record<string, unknown>;
 }
 
-export function AuthVaultProvider({
+export function SignaKitProvider({
   children,
   backendUrl,
   chains = ['evm'],
@@ -140,17 +140,17 @@ export function AuthVaultProvider({
   supabaseUrl,
   supabaseAnonKey,
   theme,
-}: AuthVaultProviderProps) {
+}: SignaKitProviderProps) {
   const [state, setState] = useState<AuthState>({
     status: 'loading',
     user: null,
     session: null,
   });
 
-  const client = useMemo(() => new AuthVaultClient(backendUrl), [backendUrl]);
+  const client = useMemo(() => new SignaKitClient(backendUrl), [backendUrl]);
   const deviceId = useMemo(() => getDeviceId(), []);
 
-  const config: AuthVaultConfig = useMemo(
+  const config: SignaKitConfig = useMemo(
     () => ({ backendUrl, chains, walletConnectProjectId, supabaseUrl, supabaseAnonKey, theme }),
     [backendUrl, chains, walletConnectProjectId, supabaseUrl, supabaseAnonKey, theme],
   );
@@ -288,7 +288,7 @@ export function AuthVaultProvider({
         if (event !== 'SIGNED_IN' || !session) return;
         if (session.user.app_metadata?.provider !== 'google') return;
 
-        // Skip if we already have an AuthVault session for this user
+        // Skip if we already have a SignaKit session for this user
         const existing = loadSession();
         if (existing) return;
 
@@ -306,7 +306,7 @@ export function AuthVaultProvider({
   }, [supabaseClient, client, deviceId, handleAuthResponse]);
 
   return (
-    <AuthVaultContext.Provider value={{
+    <SignaKitContext.Provider value={{
       config,
       client,
       state,
@@ -316,6 +316,6 @@ export function AuthVaultProvider({
       handleAuthResponse,
     }}>
       {children}
-    </AuthVaultContext.Provider>
+    </SignaKitContext.Provider>
   );
 }

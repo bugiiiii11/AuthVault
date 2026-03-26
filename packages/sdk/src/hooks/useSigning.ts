@@ -7,7 +7,7 @@
  * No SSS reconstruction needed -- the server already assembled the key during device-init.
  */
 import { useCallback } from 'react';
-import { useAuthVaultContext } from '../AuthVaultProvider';
+import { useSignaKitContext } from '../SignaKitProvider';
 import { getPrivateKey } from '../core/privateKeyStore';
 import { zeroBytes } from '../crypto/shamir';
 import { secp256k1 } from '@noble/curves/secp256k1';
@@ -21,7 +21,7 @@ interface SignMessageResult {
 }
 
 export function useSigning() {
-  const { state } = useAuthVaultContext();
+  const { state } = useSignaKitContext();
 
   async function loadPrivateKey(): Promise<Uint8Array> {
     if (!state.user) throw new Error('Not authenticated');

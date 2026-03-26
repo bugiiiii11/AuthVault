@@ -2,16 +2,16 @@
  * useWallet hook -- connects external wallets and authenticates via SIWE.
  */
 import { useCallback, useState, useMemo } from 'react';
-import { useAuthVaultContext } from '../AuthVaultProvider';
+import { useSignaKitContext } from '../SignaKitProvider';
 import { getDeviceId } from '../core/session';
 import { createMetaMaskConnector } from '../connectors/metamask';
 import { createWalletConnectConnector } from '../connectors/walletconnect';
 import { createCoinbaseConnector } from '../connectors/coinbase';
 import type { WalletConnector, ConnectedWallet } from '../connectors/types';
-import type { WalletProvider } from '@authvault/types';
+import type { WalletProvider } from '@signakit/types';
 
 export function useWallet() {
-  const { config, client, setState, handleAuthResponse } = useAuthVaultContext();
+  const { config, client, setState, handleAuthResponse } = useSignaKitContext();
   const [error, setError] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
 

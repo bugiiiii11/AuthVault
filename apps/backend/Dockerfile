@@ -14,8 +14,8 @@ FROM deps AS build
 COPY packages/types/ ./packages/types/
 COPY apps/backend/ ./apps/backend/
 COPY tsconfig.base.json ./
-RUN pnpm --filter @authvault/types build
-RUN pnpm --filter @authvault/backend build
+RUN pnpm --filter @signakit/types build
+RUN pnpm --filter @signakit/backend build
 
 # Production - fresh prod install so pnpm virtual store is intact
 FROM base AS runner

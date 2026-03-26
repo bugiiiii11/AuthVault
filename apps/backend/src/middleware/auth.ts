@@ -1,6 +1,6 @@
 /**
  * JWT authentication middleware.
- * Verifies the AuthVault session JWT (not the Supabase JWT).
+ * Verifies the SignaKit session JWT (not the Supabase JWT).
  */
 import { createMiddleware } from 'hono/factory';
 import * as jose from 'jose';
@@ -24,7 +24,7 @@ declare module 'hono' {
 const secret = new TextEncoder().encode(env.JWT_SECRET);
 
 /**
- * Middleware: require a valid AuthVault session JWT.
+ * Middleware: require a valid SignaKit session JWT.
  * Sets c.get('auth') with the decoded payload.
  */
 export const requireAuth = createMiddleware(async (c, next) => {
@@ -48,7 +48,7 @@ export const requireAuth = createMiddleware(async (c, next) => {
 });
 
 /**
- * Issue a new AuthVault session JWT.
+ * Issue a new SignaKit session JWT.
  */
 export async function issueSessionJWT(payload: Omit<AuthPayload, 'iat' | 'exp'>): Promise<string> {
   return new jose.SignJWT(payload as unknown as jose.JWTPayload)

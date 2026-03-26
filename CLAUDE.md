@@ -1,13 +1,13 @@
-# AuthVault -- Project Instructions
+# SignaKit -- Project Instructions
 
 ## What This Is
-AuthVault MVP -- self-hosted Web3Auth replacement for Swarm Resistance gaming platform.
+SignaKit (formerly AuthVault) -- self-hosted Web3Auth replacement for Swarm Resistance gaming platform.
 Authentication + transaction signing only. No wallet UI, no token display, no custody.
 
 ## Current State
 - Session: 6 complete
 - Phase: Seamless key management implemented. Next: verify Railway deploy, test multi-device, integrate into Swarm Resistance
-- Repo: github.com/bugiiiii11/AuthVault (21 commits on main)
+- Repo: github.com/bugiiiii11/AuthVault (folder name kept, package names renamed to signakit)
 - Supabase: project hldkdiibvsdtgxnqaaxq, supabase_vault v0.3.1 installed
 - Build: 4/4 packages clean, 33/33 crypto tests passing
 - Backend: live at authvaultbackend-production.up.railway.app (no libsodium -- Node.js crypto only)
@@ -40,6 +40,12 @@ Authentication + transaction signing only. No wallet UI, no token display, no cu
 - All env vars in .env.example (never commit real .env)
 - libsodium-wrappers requires CJS alias in vite/vitest configs (ESM build is broken)
 
+## Backward Compatibility Constants (DO NOT RENAME)
+- HKDF info strings: `authvault-v1`, `authvault-device-init-v1`
+- IndexedDB database name: `authvault`
+- localStorage keys: `authvault:session`, `authvault:user`, `authvault:deviceId`
+- Vault SQL functions: `create_user_vault_key`, `get_user_vault_key`, `update_user_vault_key`
+
 ## Skills Available
 - `/start` -- Session initialization, read project state
 - `/wrap` -- Commit, push, update docs
@@ -49,5 +55,4 @@ Authentication + transaction signing only. No wallet UI, no token display, no cu
 
 ## Key Files
 - `handoff.md` -- Session history and "What To Do Next"
-- `AuthVault_MVP_Documentation.md` -- Full MVP spec (source of truth)
 - `.env.example` -- All required environment variables

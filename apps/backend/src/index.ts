@@ -1,7 +1,7 @@
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import type { HealthResponse } from '@authvault/types';
+import type { HealthResponse } from '@signakit/types';
 import { env } from './config/env';
 import googleAuth from './routes/auth/google';
 import emailAuth from './routes/auth/email';
@@ -41,7 +41,7 @@ app.onError((err, c) => {
   }, 500);
 });
 
-console.log(`AuthVault backend running on port ${env.PORT}`);
+console.log(`SignaKit backend running on port ${env.PORT}`);
 
 serve({ fetch: app.fetch, port: env.PORT });
 

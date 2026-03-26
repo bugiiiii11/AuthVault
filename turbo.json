@@ -7,7 +7,7 @@
       "env": [
         "VITE_SUPABASE_URL",
         "VITE_SUPABASE_ANON_KEY",
-        "VITE_AUTHVAULT_BACKEND_URL",
+        "VITE_SIGNAKIT_BACKEND_URL",
         "VITE_WALLETCONNECT_PROJECT_ID"
       ]
     },

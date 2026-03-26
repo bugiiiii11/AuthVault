@@ -1,8 +1,8 @@
-// AuthVault SDK - Main exports
+// SignaKit SDK - Main exports
 
 // Provider
-export { AuthVaultProvider } from './AuthVaultProvider';
-export type { AuthVaultConfig, AuthVaultContextValue } from './AuthVaultProvider';
+export { SignaKitProvider } from './SignaKitProvider';
+export type { SignaKitConfig, SignaKitContextValue } from './SignaKitProvider';
 
 // Hooks
 export { useAuth } from './hooks/useAuth';
@@ -19,7 +19,7 @@ export { createCoinbaseConnector } from './connectors/coinbase';
 export type { WalletConnector, ConnectedWallet } from './connectors/types';
 
 // Core utilities
-export { AuthVaultClient, AuthVaultAPIError } from './core/client';
+export { SignaKitClient, SignaKitAPIError } from './core/client';
 export { getDeviceId, loadSession, clearSession } from './core/session';
 export { storeDeviceShare, getDeviceShare, hasDeviceShare, clearAllShares, getOrCreateEncryptionKey } from './core/deviceShare';
 export { generateAndDistributeKeys } from './core/keyManager';
@@ -34,5 +34,5 @@ export type {
   AuthUser, AuthSession, AuthState, AuthStatus,
   OAuthProvider, WalletProvider, LoginMethod,
   KeyPair, Share, EncryptedShare, SplitResult,
-  AuthResponse, AuthVaultError,
-} from '@authvault/types';
+  AuthResponse, SignaKitError,
+} from '@signakit/types';

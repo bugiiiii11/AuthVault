@@ -1,4 +1,4 @@
-# AuthVault -- Session Handoff
+# SignaKit -- Session Handoff
 
 ## Session Summary
 
@@ -21,7 +21,7 @@
 
 4. **Backend: libsodium fully removed** -- ESM build of libsodium-wrappers crashed in Docker (missing `libsodium.mjs`). All backend crypto now uses Node.js built-in `crypto` module. Recovery routes removed from `index.ts`.
 
-5. **SDK: seamless key flow** -- `core/privateKeyStore.ts` stores full encrypted private key in IndexedDB. `AuthVaultProvider.tsx` removed all recovery state, added `ensureLocalKey()` using Web Crypto API for X25519 ECDH transport. `hooks/useSigning.ts` uses direct private key from IndexedDB (no SSS reconstruction).
+5. **SDK: seamless key flow** -- `core/privateKeyStore.ts` stores full encrypted private key in IndexedDB. `SignaKitProvider.tsx` removed all recovery state, added `ensureLocalKey()` using Web Crypto API for X25519 ECDH transport. `hooks/useSigning.ts` uses direct private key from IndexedDB (no SSS reconstruction).
 
 6. **SDK: recovery UI removed** -- `LoginModal.tsx` stripped of `recovery-setup` and `recovery-password` views. SSS code kept behind `mode: 'sovereign'` flag.
 
@@ -56,7 +56,7 @@
    - `apps/backend/src/routes/keys/recovery.ts` -- 3 new routes: `POST /api/keys/recovery-bundle`, `GET /api/keys/recovery-bundle`, `POST /api/keys/recover`
    - `packages/sdk/src/core/keyManager.ts` -- `setupRecoveryBundle` + complete `recoverWithPassword`
    - `packages/sdk/src/core/client.ts` -- `storeRecoveryBundle`, `getRecoveryBundle`, `updateServerShareAfterRecovery`
-   - `packages/sdk/src/AuthVaultProvider.tsx` -- `needsRecoverySetup`, `needsRecovery`, `setupRecovery`, `completeRecovery`, `dismissRecoverySetup` added to context
+   - `packages/sdk/src/SignaKitProvider.tsx` -- `needsRecoverySetup`, `needsRecovery`, `setupRecovery`, `completeRecovery`, `dismissRecoverySetup` added to context
    - `packages/sdk/src/components/LoginModal.tsx` -- two new views: `recovery-setup` (set password after first login) and `recovery-password` (enter password on new device)
    - Committed: 161d090
 
@@ -75,11 +75,11 @@
 
 1. **MetaMask wired** -- `LoginModal` now calls `useWallet.connect('metamask')`. SIWE flow end-to-end: nonce → sign → verify → session. Tested and working.
 2. **WalletConnect wired** -- Same pattern. UI opens and shows QR modal. Blocked only by WalletConnect Cloud domain whitelist (see Known Issues).
-3. **Google OAuth wired** -- `LoginModal.handleGoogleLogin` calls `supabaseClient.auth.signInWithOAuth`. `AuthVaultProvider` listens to `onAuthStateChange`, auto-calls backend on redirect callback. Tested and working.
-4. **Key generation on first login** -- Centralized `handleAuthResponse` in `AuthVaultProvider` generates Shamir SSS keys (3 shares, 2-of-3 threshold) when `isNew === true` and `loginMethod !== 'wallet'`. Device share stored in IndexedDB, server + recovery shares sent to backend. EVM address populated immediately after login.
+3. **Google OAuth wired** -- `LoginModal.handleGoogleLogin` calls `supabaseClient.auth.signInWithOAuth`. `SignaKitProvider` listens to `onAuthStateChange`, auto-calls backend on redirect callback. Tested and working.
+4. **Key generation on first login** -- Centralized `handleAuthResponse` in `SignaKitProvider` generates Shamir SSS keys (3 shares, 2-of-3 threshold) when `isNew === true` and `loginMethod !== 'wallet'`. Device share stored in IndexedDB, server + recovery shares sent to backend. EVM address populated immediately after login.
 5. **`@supabase/supabase-js` added to SDK** -- Supabase client created in provider if `supabaseUrl` + `supabaseAnonKey` provided. Exposed via context.
 6. **`getOrCreateEncryptionKey` helper** -- Generates/persists a 32-byte encryption key per user in IndexedDB. Used to encrypt all SSS shares.
-7. **Deleted `@authvault/demo` Railway service** -- Demo is on Vercel only. Railway service was misconfigured (static frontend, no healthcheck).
+7. **Deleted `@signakit/demo` Railway service** -- Demo is on Vercel only. Railway service was misconfigured (static frontend, no healthcheck).
 8. **Committed**: 13aaa5d, f8a8582.
 
 ## What Was Done (Session 2) -- Deployment + Email OTP
@@ -98,7 +98,7 @@
 3. **Crypto core (33/33 tests)** -- Shamir SSS (GF(2^8)), XChaCha20-Poly1305, secp256k1 keygen. Committed: 46e0ee2.
 4. **Supabase live** -- 4 tables (wallet_users, key_shares, auth_sessions, user_devices) + RLS. Project: hldkdiibvsdtgxnqaaxq.
 5. **Backend complete** -- 10 API routes (Google, Email OTP, SIWE, session, keys), JWT middleware, rate limiting. Committed: f8408ec.
-6. **SDK frontend** -- AuthVaultProvider, useAuth, LoginModal, HTTP client, IndexedDB storage, session mgmt. Committed: 3c20e06.
+6. **SDK frontend** -- SignaKitProvider, useAuth, LoginModal, HTTP client, IndexedDB storage, session mgmt. Committed: 3c20e06.
 7. **Wallet connectors** -- MetaMask (EIP-6963), WalletConnect v2, Coinbase Wallet + useWallet hook with SIWE flow. Committed: 601d8d0.
 8. **Signing** -- useSigning hook with main-thread SSS reconstruction (20-40ms). Committed: 601d8d0.
 9. **Key lifecycle** -- generateAndDistributeKeys (generate, split, encrypt, store device + send server/recovery shares). Committed: 601d8d0.
@@ -124,14 +124,14 @@ None outstanding. WalletConnect domain whitelist resolved in session 4.
 | 2 | Test email OTP with different email | `chaosgenesisnft@gmail.com` has Supabase provider conflict (Google + OTP). Test with a separate email |
 | 3 | Test full login + signing flow | Google OAuth login, verify EVM address appears, test message signing |
 | 4 | Test multi-device | Same Google account in 2 browsers → same wallet address, signing works from both |
-| 5 | Integrate into Swarm Resistance | Replace Web3Auth with `@authvault/sdk` in game frontend |
+| 5 | Integrate into Swarm Resistance | Replace Web3Auth with `@signakit/sdk` in game frontend |
 
 ## Deployment Env Vars
 
 ### Railway (backend) -- already set
 ```
 SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
-AUTHVAULT_JWT_SECRET, AUTHVAULT_ENCRYPTION_MASTER_KEY
+SIGNAKIT_JWT_SECRET, SIGNAKIT_ENCRYPTION_MASTER_KEY
 GOOGLE_CLIENT_ID
 ALLOWED_ORIGINS=https://auth-vault-demo.vercel.app
 NODE_ENV=production, PORT=3001
@@ -140,7 +140,7 @@ NODE_ENV=production, PORT=3001
 ### Vercel (demo) -- already set
 ```
 VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
-VITE_AUTHVAULT_BACKEND_URL=https://authvaultbackend-production.up.railway.app
+VITE_SIGNAKIT_BACKEND_URL=https://authvaultbackend-production.up.railway.app
 VITE_WALLETCONNECT_PROJECT_ID
 ```
 
@@ -153,7 +153,7 @@ VITE_WALLETCONNECT_PROJECT_ID
 | `packages/sdk/src/hooks/` | useAuth, useWallet, useSigning |
 | `packages/sdk/src/connectors/` | MetaMask, WalletConnect, Coinbase |
 | `packages/sdk/src/components/LoginModal.tsx` | Auth modal -- all methods + recovery-setup + recovery-password views |
-| `packages/sdk/src/AuthVaultProvider.tsx` | Provider -- Supabase client, handleAuthResponse, key gen, recovery state |
+| `packages/sdk/src/SignaKitProvider.tsx` | Provider -- Supabase client, handleAuthResponse, key gen, recovery state |
 | `packages/sdk/src/core/privateKeyStore.ts` | IndexedDB store for full encrypted private key (seamless mode) |
 | `apps/backend/src/services/keyDerivation.ts` | HKDF-SHA256 key derivation service |
 | `apps/backend/src/routes/keys/deviceInit.ts` | X25519 ECDH + AES-256-GCM transport route |
@@ -161,6 +161,6 @@ VITE_WALLETCONNECT_PROJECT_ID
 | `apps/backend/src/services/emailOtp.ts` | OTP send (admin client) + verify (anon client) |
 | `apps/backend/src/middleware/` | JWT auth, rate limiting |
 | `apps/backend/Dockerfile` | Production Docker build (fresh pnpm install in runner) |
-| `apps/demo/src/main.tsx` | Demo entry -- AuthVaultProvider with all env vars |
+| `apps/demo/src/main.tsx` | Demo entry -- SignaKitProvider with all env vars |
 | `apps/demo/src/App.tsx` | Demo app -- login UI + sign-message test button |
 | `supabase/migrations/` | 7 SQL files (applied) |

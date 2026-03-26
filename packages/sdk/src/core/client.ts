@@ -1,9 +1,9 @@
 /**
- * HTTP client for AuthVault backend API.
+ * HTTP client for SignaKit backend API.
  */
-import type { AuthResponse, EmailStartResponse, NonceResponse, AuthVaultError, HealthResponse } from '@authvault/types';
+import type { AuthResponse, EmailStartResponse, NonceResponse, SignaKitError, HealthResponse } from '@signakit/types';
 
-export class AuthVaultClient {
+export class SignaKitClient {
   private baseUrl: string;
   private token: string | null = null;
 
@@ -153,8 +153,8 @@ export class AuthVaultClient {
   private async handleResponse<T>(res: Response): Promise<T> {
     const data = await res.json();
     if (!res.ok) {
-      const err = data as AuthVaultError;
-      throw new AuthVaultAPIError(
+      const err = data as SignaKitError;
+      throw new SignaKitAPIError(
         err.error?.code || 'UNKNOWN',
         err.error?.message || 'Request failed',
         err.error?.userMessage || 'Something went wrong.',
@@ -166,7 +166,7 @@ export class AuthVaultClient {
   }
 }
 
-export class AuthVaultAPIError extends Error {
+export class SignaKitAPIError extends Error {
   constructor(
     public code: string,
     message: string,
@@ -175,6 +175,6 @@ export class AuthVaultAPIError extends Error {
     public status: number,
   ) {
     super(message);
-    this.name = 'AuthVaultAPIError';
+    this.name = 'SignaKitAPIError';
   }
 }

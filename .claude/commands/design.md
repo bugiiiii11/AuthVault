@@ -355,7 +355,7 @@ When building auth UI, reuse these existing components from the Swarm Resistance
 - `Card.jsx` -- HUDCard with corner accents
 - `EnergyBar.jsx` -- progress bar pattern
 - `PurchaseModal.jsx` -- modal pattern reference
-- `Web3AuthProvider.jsx` -- current auth context (being replaced by AuthVault)
+- `Web3AuthProvider.jsx` -- current auth context (being replaced by SignaKit)
 
 ### Do NOT
 - Invent new colors outside the palette

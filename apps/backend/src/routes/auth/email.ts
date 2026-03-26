@@ -15,7 +15,7 @@ const email = new Hono();
 // Step 1: Send OTP to email
 email.post(
   '/start',
-  rateLimit({ window: '1h', max: 5, keyPrefix: 'auth:email:start' }),
+  rateLimit({ window: '1h', max: 15, keyPrefix: 'auth:email:start' }),
   async (c) => {
     const body = await c.req.json<{ email: string }>();
 

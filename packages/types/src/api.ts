@@ -36,7 +36,7 @@ export interface ServerShareResponse {
 
 // -- Error response --
 
-export interface AuthVaultError {
+export interface SignaKitError {
   error: {
     code: string;
     message: string;

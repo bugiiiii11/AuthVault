@@ -2,6 +2,7 @@
  * Server-side key derivation for seamless mode.
  *
  * Private key = HKDF-SHA256(masterKey, userId, info='authvault-v1')
+ * (info constant kept as 'authvault-v1' for backward compatibility with existing keys)
  * This is deterministic: same master key + same user ID always produces the same wallet.
  * If the Vault entry is ever lost the key can be re-derived from the master secret.
  */
@@ -29,7 +30,7 @@ export function bytesToHex(bytes: Uint8Array): string {
 /**
  * Derive a deterministic secp256k1 private key for a user.
  *
- * @param masterKeyHex - AUTHVAULT_ENCRYPTION_MASTER_KEY (hex or plain string)
+ * @param masterKeyHex - SIGNAKIT_ENCRYPTION_MASTER_KEY (hex or plain string)
  * @param userId       - wallet_users.id (UUID string)
  */
 export function deriveUserPrivateKey(masterKeyHex: string, userId: string): Uint8Array {

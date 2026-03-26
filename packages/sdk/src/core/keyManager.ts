@@ -7,7 +7,7 @@ import { split, combine, zeroBytes } from '../crypto/shamir';
 import { encrypt, decrypt } from '../crypto/encryption';
 import { deriveKeyFromPassword, generateSalt } from '../crypto/pbkdf2';
 import { storeDeviceShare, getDeviceShare } from './deviceShare';
-import { AuthVaultClient } from './client';
+import { SignaKitClient } from './client';
 
 /**
  * Generate a new key pair, split into shares, and distribute.
@@ -18,7 +18,7 @@ import { AuthVaultClient } from './client';
  * @returns The EVM address of the generated key
  */
 export async function generateAndDistributeKeys(
-  client: AuthVaultClient,
+  client: SignaKitClient,
   userId: string,
   encryptionKey: Uint8Array,
 ): Promise<{ evmAddress: string }> {
@@ -82,7 +82,7 @@ export async function generateAndDistributeKeys(
  * @param password - Recovery password chosen by the user
  */
 export async function setupRecoveryBundle(
-  client: AuthVaultClient,
+  client: SignaKitClient,
   userId: string,
   encryptionKey: Uint8Array,
   password: string,
@@ -160,7 +160,7 @@ export async function setupRecoveryBundle(
  * @returns The EVM address (to confirm recovery succeeded)
  */
 export async function recoverWithPassword(
-  client: AuthVaultClient,
+  client: SignaKitClient,
   userId: string,
   newDeviceEncryptionKey: Uint8Array,
   password: string,

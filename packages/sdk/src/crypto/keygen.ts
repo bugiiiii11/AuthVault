@@ -4,7 +4,7 @@
  */
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { keccak_256 } from '@noble/hashes/sha3';
-import type { KeyPair } from '@authvault/types';
+import type { KeyPair } from '@signakit/types';
 
 /**
  * Generate an EVM (Ethereum) key pair.

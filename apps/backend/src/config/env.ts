@@ -24,12 +24,12 @@ export const env = {
   SUPABASE_ANON_KEY: requireEnv('SUPABASE_ANON_KEY'),
   SUPABASE_SERVICE_ROLE_KEY: requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
 
-  // JWT
-  JWT_SECRET: requireEnv('AUTHVAULT_JWT_SECRET'),
+  // JWT (accept both old and new env var names for backward compatibility)
+  JWT_SECRET: process.env.SIGNAKIT_JWT_SECRET || requireEnv('AUTHVAULT_JWT_SECRET'),
   JWT_EXPIRES_IN: optionalEnv('JWT_EXPIRES_IN', '7d'),
 
-  // Encryption
-  ENCRYPTION_MASTER_KEY: requireEnv('AUTHVAULT_ENCRYPTION_MASTER_KEY'),
+  // Encryption (accept both old and new env var names)
+  ENCRYPTION_MASTER_KEY: process.env.SIGNAKIT_ENCRYPTION_MASTER_KEY || requireEnv('AUTHVAULT_ENCRYPTION_MASTER_KEY'),
 
   // Rate limiting (Upstash)
   UPSTASH_REDIS_REST_URL: optionalEnv('UPSTASH_REDIS_REST_URL', ''),

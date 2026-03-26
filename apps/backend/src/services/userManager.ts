@@ -3,7 +3,7 @@
  * Creates/finds wallet_users based on OAuth identity.
  */
 import { adminClient } from '../config/supabase';
-import type { AuthUser } from '@authvault/types';
+import type { AuthUser } from '@signakit/types';
 
 interface OAuthIdentity {
   provider: string;    // 'google', 'apple', 'x', 'email'

@@ -6,8 +6,8 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useWallet } from '../hooks/useWallet';
-import { useAuthVaultContext } from '../AuthVaultProvider';
-import type { WalletProvider } from '@authvault/types';
+import { useSignaKitContext } from '../SignaKitProvider';
+import type { WalletProvider } from '@signakit/types';
 
 type LoginView = 'main' | 'email-input' | 'email-verify' | 'wallet-connecting';
 
@@ -42,7 +42,7 @@ export function LoginModal({
 }: LoginModalProps) {
   const { status, user, error, sendEmailCode, verifyEmailCode } = useAuth();
   const { connect, isConnecting, error: walletError } = useWallet();
-  const { supabaseClient } = useAuthVaultContext();
+  const { supabaseClient } = useSignaKitContext();
   const [view, setView] = useState<LoginView>('main');
   const [email, setEmail] = useState('');
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
@@ -172,13 +172,13 @@ export function LoginModal({
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="authvault-modal-title"
+      aria-labelledby="signakit-modal-title"
       style={{ background: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(8px)' }}
     >
       <div
         ref={modalRef}
         className="relative w-full max-w-sm mx-4 rounded-lg overflow-hidden"
-        style={{ animation: 'authvault-modal-in 0.3s ease-out' }}
+        style={{ animation: 'signakit-modal-in 0.3s ease-out' }}
       >
         {/* Corner accents */}
         <CornerAccents />
@@ -204,7 +204,7 @@ export function LoginModal({
 
           {logo && <div className="mb-3">{logo}</div>}
           <h2
-            id="authvault-modal-title"
+            id="signakit-modal-title"
             className="text-cyan-400 text-lg tracking-widest uppercase"
             style={{ fontFamily: 'Orbitron, monospace', textShadow: '0 0 20px rgba(34, 211, 238, 0.3)' }}
           >
@@ -369,14 +369,14 @@ export function LoginModal({
 
               <div>
                 <label
-                  htmlFor="authvault-email"
+                  htmlFor="signakit-email"
                   className="block text-gray-400 text-sm mb-2"
                   style={{ fontFamily: 'Orbitron, monospace', fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase' }}
                 >
                   Email address
                 </label>
                 <input
-                  id="authvault-email"
+                  id="signakit-email"
                   type="email"
                   value={email}
                   onChange={(e) => {
@@ -488,7 +488,7 @@ export function LoginModal({
                     onKeyDown={(e) => handleOtpKeyDown(i, e)}
                     autoFocus={i === 0}
                     disabled={isLoading}
-                    className="w-12 h-14 text-center text-xl text-white rounded-lg transition-all duration-200 focus:outline-none disabled:opacity-50"
+                    className="w-11 h-12 text-center text-xl text-white rounded-lg transition-all duration-200 focus:outline-none disabled:opacity-50"
                     style={{
                       fontFamily: 'JetBrains Mono, monospace',
                       background: '#0f1f38',
@@ -537,13 +537,13 @@ export function LoginModal({
           }}
         >
           <p className="text-gray-600 text-xs" style={{ fontFamily: 'Orbitron, monospace', fontSize: '10px', letterSpacing: '0.15em' }}>
-            Secured by AuthVault
+            Secured by SignaKit
           </p>
         </div>
       </div>
 
       <style>{`
-        @keyframes authvault-modal-in {
+        @keyframes signakit-modal-in {
           from { opacity: 0; transform: scale(0.92) translateY(-12px); }
           to { opacity: 1; transform: scale(1) translateY(0); }
         }

@@ -1,5 +1,5 @@
 /**
- * Session management for AuthVault SDK.
+ * Session management for SignaKit SDK.
  * Persists session token in localStorage with expiry checking.
  */
 
