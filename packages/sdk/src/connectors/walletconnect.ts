@@ -10,6 +10,9 @@ interface WalletConnectOptions {
   onDisplayUri?: (uri: string) => void;
 }
 
+// Timeout for WalletConnect pairing (2 minutes)
+const WC_CONNECT_TIMEOUT_MS = 120_000;
+
 export function createWalletConnectConnector(options: WalletConnectOptions): WalletConnector {
   let provider: any = null;
 
@@ -45,7 +48,20 @@ export function createWalletConnectConnector(options: WalletConnectOptions): Wal
     async connect(): Promise<ConnectedWallet> {
       const wc = await getProvider();
 
-      const accounts = await wc.enable();
+      // Clear any stale session so enable() always creates a fresh pairing
+      // and fires display_uri. Without this, enable() reuses a dead session
+      // from localStorage and hangs forever.
+      if (wc.session) {
+        try { await wc.disconnect(); } catch { /* ignore */ }
+      }
+
+      // Wrap enable() with a timeout so it can't hang forever
+      const accounts = await Promise.race([
+        wc.enable(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('WalletConnect connection timed out. Please try again.')), WC_CONNECT_TIMEOUT_MS)
+        ),
+      ]);
 
       if (!accounts || accounts.length === 0) {
         throw new Error('No accounts returned from WalletConnect');
@@ -62,7 +78,7 @@ export function createWalletConnectConnector(options: WalletConnectOptions): Wal
 
     async disconnect(): Promise<void> {
       if (provider) {
-        await provider.disconnect();
+        try { await provider.disconnect(); } catch { /* ignore */ }
         provider = null;
       }
     },
