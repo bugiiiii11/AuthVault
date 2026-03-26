@@ -1,7 +1,7 @@
 /**
  * useWallet hook -- connects external wallets and authenticates via SIWE.
  */
-import { useCallback, useState, useMemo, useRef } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import { useSignaKitContext } from '../SignaKitProvider';
 import { getDeviceId } from '../core/session';
 import { createMetaMaskConnector } from '../connectors/metamask';
@@ -14,11 +14,6 @@ export function useWallet() {
   const { config, client, setState, handleAuthResponse } = useSignaKitContext();
   const [error, setError] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [wcUri, setWcUri] = useState<string | null>(null);
-
-  // Use ref to give the connector a stable callback that always calls the latest setWcUri
-  const wcUriCallbackRef = useRef<(uri: string) => void>((uri) => setWcUri(uri));
-  wcUriCallbackRef.current = (uri) => setWcUri(uri);
 
   const connectors = useMemo(() => {
     const map: Partial<Record<WalletProvider, WalletConnector>> = {
@@ -28,7 +23,6 @@ export function useWallet() {
     if (config.walletConnectProjectId) {
       map.walletconnect = createWalletConnectConnector({
         projectId: config.walletConnectProjectId,
-        onDisplayUri: (uri) => wcUriCallbackRef.current(uri),
       });
     }
 
@@ -46,15 +40,11 @@ export function useWallet() {
 
     setError(null);
     setIsConnecting(true);
-    setWcUri(null);
     setState(prev => ({ ...prev, status: 'loading' }));
 
     try {
       // Step 1: Connect wallet
       const wallet: ConnectedWallet = await connector.connect();
-
-      // Clear QR once connected
-      setWcUri(null);
 
       // Step 2: Request SIWE nonce from backend
       const { nonce } = await client.siweNonce(wallet.address);
@@ -87,7 +77,6 @@ export function useWallet() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Wallet connection failed';
       setError(msg);
-      setWcUri(null);
       setState(prev => ({ ...prev, status: 'unauthenticated' }));
     } finally {
       setIsConnecting(false);
@@ -99,6 +88,5 @@ export function useWallet() {
     connectors,
     isConnecting,
     error,
-    wcUri,
   };
 }

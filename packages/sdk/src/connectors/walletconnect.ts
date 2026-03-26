@@ -1,13 +1,12 @@
 /**
  * WalletConnect v2 connector.
- * Renders QR code in our own UI instead of relying on @reown/appkit modal.
+ * Uses @walletconnect/ethereum-provider with built-in QR modal.
  */
 import type { WalletConnector, ConnectedWallet } from './types';
 
 interface WalletConnectOptions {
   projectId: string;
   chains?: number[];
-  onDisplayUri?: (uri: string) => void;
 }
 
 // Timeout for WalletConnect pairing (2 minutes)
@@ -25,13 +24,8 @@ export function createWalletConnectConnector(options: WalletConnectOptions): Wal
     provider = await EthereumProvider.init({
       projectId: options.projectId,
       chains: options.chains || [1], // Default to mainnet
-      showQrModal: false, // We render our own QR code
+      showQrModal: true,
       optionalChains: [137, 56, 42161, 10, 8453], // Polygon, BSC, Arbitrum, Optimism, Base
-    });
-
-    // Emit the pairing URI so the UI can show a QR code
-    provider.on('display_uri', (uri: string) => {
-      options.onDisplayUri?.(uri);
     });
 
     return provider;
@@ -48,9 +42,9 @@ export function createWalletConnectConnector(options: WalletConnectOptions): Wal
     async connect(): Promise<ConnectedWallet> {
       const wc = await getProvider();
 
-      // Clear any stale session so enable() always creates a fresh pairing
-      // and fires display_uri. Without this, enable() reuses a dead session
-      // from localStorage and hangs forever.
+      // Clear any stale session so enable() always creates a fresh pairing.
+      // Without this, enable() reuses a dead session from localStorage
+      // and hangs forever.
       if (wc.session) {
         try { await wc.disconnect(); } catch { /* ignore */ }
       }
