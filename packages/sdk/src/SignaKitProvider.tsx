@@ -292,12 +292,23 @@ export function SignaKitProvider({
         const existing = loadSession();
         if (existing) return;
 
-        try {
-          const res = await client.authGoogle(session.access_token, deviceId);
-          await handleAuthResponse(res);
-        } catch (err) {
-          console.error('Google OAuth callback failed:', err);
-          setState(prev => ({ ...prev, status: 'unauthenticated' }));
+        // Retry logic: for brand-new Google users, Supabase may need a moment
+        // before the admin API can verify the freshly-issued access token.
+        const maxRetries = 3;
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+          try {
+            if (attempt > 0) {
+              await new Promise(r => setTimeout(r, 1000 * attempt));
+            }
+            const res = await client.authGoogle(session.access_token, deviceId);
+            await handleAuthResponse(res);
+            return;
+          } catch (err) {
+            if (attempt === maxRetries - 1) {
+              console.error('Google OAuth callback failed after retries:', err);
+              setState(prev => ({ ...prev, status: 'unauthenticated' }));
+            }
+          }
         }
       },
     );
