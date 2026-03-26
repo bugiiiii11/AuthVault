@@ -1,6 +1,7 @@
 /**
- * LoginModal -- Pre-built auth modal following Swarm Resistance design system.
- * Supports social logins (Google, Email) and wallet connections.
+ * LoginModal -- Auth modal following Swarm Resistance design system.
+ * Supports wallet connections (MetaMask, WalletConnect, Coinbase) and
+ * social logins (Google, Email OTP).
  */
 import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { useAuth } from '../hooks/useAuth';
@@ -8,7 +9,7 @@ import { useWallet } from '../hooks/useWallet';
 import { useAuthVaultContext } from '../AuthVaultProvider';
 import type { WalletProvider } from '@authvault/types';
 
-type LoginView = 'main' | 'email-input' | 'email-verify' | 'wallet-select' | 'wallet-connecting';
+type LoginView = 'main' | 'email-input' | 'email-verify' | 'wallet-connecting';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -20,15 +21,24 @@ interface LoginModalProps {
   };
   logo?: ReactNode;
   title?: string;
+  subtitle?: string;
+}
+
+const GMAIL_DOMAINS = ['gmail.com', 'googlemail.com'];
+
+function isGmailAddress(email: string): boolean {
+  const domain = email.split('@')[1]?.toLowerCase();
+  return GMAIL_DOMAINS.includes(domain);
 }
 
 export function LoginModal({
   isOpen,
   onClose,
   onSuccess,
-  providers = { social: ['google', 'email'], wallets: ['metamask', 'walletconnect'] },
+  providers = { wallets: ['metamask', 'walletconnect'], social: ['google', 'email'] },
   logo,
   title = 'Connect to Play',
+  subtitle = 'Sign in with your wallet or account',
 }: LoginModalProps) {
   const { status, user, error, sendEmailCode, verifyEmailCode } = useAuth();
   const { connect, isConnecting, error: walletError } = useWallet();
@@ -38,6 +48,8 @@ export function LoginModal({
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [emailSent, setEmailSent] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
+  const [gmailWarning, setGmailWarning] = useState(false);
+  const [connectingWallet, setConnectingWallet] = useState<string | null>(null);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -70,6 +82,8 @@ export function LoginModal({
       setEmail('');
       setOtpDigits(['', '', '', '', '', '']);
       setEmailSent(false);
+      setGmailWarning(false);
+      setConnectingWallet(null);
     }
   }, [isOpen]);
 
@@ -89,11 +103,24 @@ export function LoginModal({
   }, [supabaseClient]);
 
   const handleWalletConnect = useCallback(async (provider: WalletProvider) => {
-    await connect(provider);
+    setConnectingWallet(provider);
+    try {
+      await connect(provider);
+    } finally {
+      setConnectingWallet(null);
+    }
   }, [connect]);
 
   const handleEmailSubmit = useCallback(async () => {
     if (!email) return;
+
+    // Detect Gmail and show warning
+    if (isGmailAddress(email)) {
+      setGmailWarning(true);
+      return;
+    }
+
+    setGmailWarning(false);
     try {
       await sendEmailCode(email);
       setEmailSent(true);
@@ -108,12 +135,10 @@ export function LoginModal({
     newDigits[index] = value;
     setOtpDigits(newDigits);
 
-    // Auto-advance
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
 
-    // Auto-submit when all filled
     if (value && index === 5 && newDigits.every(d => d)) {
       verifyEmailCode(email, newDigits.join(''));
     }
@@ -143,83 +168,85 @@ export function LoginModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="authvault-modal-title"
+      style={{ background: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(8px)' }}
     >
       <div
         ref={modalRef}
         className="relative w-full max-w-sm mx-4 rounded-lg overflow-hidden"
         style={{ animation: 'authvault-modal-in 0.3s ease-out' }}
       >
+        {/* Corner accents */}
+        <CornerAccents />
+
         {/* Header */}
-        <div className="bg-[#0f1f38] border-b border-cyan-500/30 px-5 py-4 text-center">
-          {logo && <div className="mb-2">{logo}</div>}
+        <div
+          className="relative px-6 py-5 text-center"
+          style={{
+            background: 'linear-gradient(180deg, #0f1f38 0%, #0F0F23 100%)',
+            borderBottom: '1px solid rgba(34, 211, 238, 0.2)',
+          }}
+        >
+          {/* Close button */}
+          <button
+            onClick={onClose}
+            className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center text-gray-500 hover:text-cyan-400 transition-colors duration-200 rounded"
+            aria-label="Close"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+
+          {logo && <div className="mb-3">{logo}</div>}
           <h2
             id="authvault-modal-title"
-            className="text-cyan-400 text-lg tracking-wide"
-            style={{ fontFamily: 'Orbitron, monospace' }}
+            className="text-cyan-400 text-lg tracking-widest uppercase"
+            style={{ fontFamily: 'Orbitron, monospace', textShadow: '0 0 20px rgba(34, 211, 238, 0.3)' }}
           >
             {title}
           </h2>
+          <p className="text-gray-400 text-sm mt-1">{subtitle}</p>
         </div>
 
         {/* Content */}
-        <div className="p-5 bg-[#0F0F23]" aria-busy={isLoading}>
+        <div className="px-5 py-5" style={{ background: '#0F0F23' }} aria-busy={isLoading}>
           {/* Error message */}
           {displayError && (
-            <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm" role="alert">
-              {displayError}
+            <div className="mb-4 p-3 rounded-lg text-sm flex items-start gap-2" role="alert"
+              style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)' }}
+            >
+              <svg className="w-4 h-4 text-red-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.072 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              <span className="text-red-400">{displayError}</span>
             </div>
           )}
 
           {/* Main view */}
           {view === 'main' && (
-            <div className="space-y-3">
-              {/* Social logins */}
-              {providers.social?.includes('google') && (
-                <button
-                  onClick={handleGoogleLogin}
-                  disabled={isLoading || !supabaseClient}
-                  className="w-full flex items-center gap-3 p-3 bg-white text-gray-900 rounded-lg font-medium hover:bg-gray-100 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
-                  aria-label="Continue with Google"
-                >
-                  <GoogleIcon />
-                  <span>Continue with Google</span>
-                </button>
-              )}
-
-              {providers.social?.includes('email') && (
-                <button
-                  onClick={() => setView('email-input')}
-                  disabled={isLoading}
-                  className="w-full flex items-center gap-3 p-3 bg-[#0f1f38] border border-cyan-500/20 text-white rounded-lg font-medium hover:border-cyan-500/40 hover:bg-[#1a2f4a] transition-all duration-200 disabled:opacity-50 min-h-[44px]"
-                  aria-label="Continue with Email"
-                >
-                  <EmailIcon />
-                  <span>Continue with Email</span>
-                </button>
-              )}
-
-              {/* Divider */}
+            <div className="space-y-2.5">
+              {/* Wallet section label */}
               {providers.wallets && providers.wallets.length > 0 && (
-                <div className="flex items-center gap-3 py-2">
-                  <div className="flex-1 h-px bg-cyan-500/20" />
-                  <span className="text-gray-500 text-xs uppercase tracking-widest" style={{ fontFamily: 'Orbitron, monospace' }}>
-                    or
-                  </span>
-                  <div className="flex-1 h-px bg-cyan-500/20" />
-                </div>
+                <p
+                  className="text-gray-500 text-xs uppercase tracking-widest mb-1 px-1"
+                  style={{ fontFamily: 'Orbitron, monospace' }}
+                >
+                  Wallet
+                </p>
               )}
 
-              {/* Wallet options */}
+              {/* Wallet options -- listed first */}
               {providers.wallets?.includes('metamask') && (
                 <WalletButton
                   name="MetaMask"
                   icon={<MetaMaskIcon />}
                   disabled={isLoading}
+                  loading={connectingWallet === 'metamask'}
                   onClick={() => handleWalletConnect('metamask')}
                 />
               )}
@@ -228,6 +255,7 @@ export function LoginModal({
                   name="WalletConnect"
                   icon={<WalletConnectIcon />}
                   disabled={isLoading}
+                  loading={connectingWallet === 'walletconnect'}
                   onClick={() => handleWalletConnect('walletconnect')}
                 />
               )}
@@ -236,14 +264,91 @@ export function LoginModal({
                   name="Coinbase Wallet"
                   icon={<CoinbaseIcon />}
                   disabled={isLoading}
+                  loading={connectingWallet === 'coinbase'}
                   onClick={() => handleWalletConnect('coinbase')}
                 />
+              )}
+
+              {/* Divider */}
+              {providers.social && providers.social.length > 0 && (
+                <div className="flex items-center gap-3 py-2">
+                  <div className="flex-1 h-px" style={{ background: 'rgba(34, 211, 238, 0.15)' }} />
+                  <span
+                    className="text-gray-600 text-xs uppercase tracking-widest"
+                    style={{ fontFamily: 'Orbitron, monospace' }}
+                  >
+                    or
+                  </span>
+                  <div className="flex-1 h-px" style={{ background: 'rgba(34, 211, 238, 0.15)' }} />
+                </div>
+              )}
+
+              {/* Social section label */}
+              {providers.social && providers.social.length > 0 && (
+                <p
+                  className="text-gray-500 text-xs uppercase tracking-widest mb-1 px-1"
+                  style={{ fontFamily: 'Orbitron, monospace' }}
+                >
+                  Account
+                </p>
+              )}
+
+              {/* Google login */}
+              {providers.social?.includes('google') && (
+                <button
+                  onClick={handleGoogleLogin}
+                  disabled={isLoading || !supabaseClient}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] group"
+                  style={{
+                    background: '#0f1f38',
+                    border: '1px solid rgba(34, 211, 238, 0.15)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.4)';
+                    e.currentTarget.style.background = '#1a2f4a';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.15)';
+                    e.currentTarget.style.background = '#0f1f38';
+                  }}
+                  aria-label="Continue with Google"
+                >
+                  <GoogleIcon />
+                  <span className="text-white text-sm">Continue with Google</span>
+                  <span className="ml-auto text-gray-600 text-xs">Gmail</span>
+                </button>
+              )}
+
+              {/* Email login */}
+              {providers.social?.includes('email') && (
+                <button
+                  onClick={() => setView('email-input')}
+                  disabled={isLoading}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg font-medium transition-all duration-300 disabled:opacity-50 min-h-[44px] group"
+                  style={{
+                    background: '#0f1f38',
+                    border: '1px solid rgba(34, 211, 238, 0.15)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.4)';
+                    e.currentTarget.style.background = '#1a2f4a';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.15)';
+                    e.currentTarget.style.background = '#0f1f38';
+                  }}
+                  aria-label="Continue with Email"
+                >
+                  <EmailIcon />
+                  <span className="text-white text-sm">Continue with Email</span>
+                  <span className="ml-auto text-gray-600 text-xs">Non-Gmail</span>
+                </button>
               )}
 
               {isConnecting && (
                 <div className="flex items-center justify-center gap-2 py-2 text-cyan-400 text-sm">
                   <Spinner />
-                  <span>Connecting wallet...</span>
+                  <span>Confirm in your wallet...</span>
                 </div>
               )}
             </div>
@@ -252,46 +357,122 @@ export function LoginModal({
           {/* Email input view */}
           {view === 'email-input' && (
             <div className="space-y-4">
-              <button onClick={() => setView('main')} className="text-cyan-400 text-sm hover:text-cyan-300 transition">
-                &larr; Back
+              <button
+                onClick={() => { setView('main'); setGmailWarning(false); }}
+                className="text-cyan-400 text-sm hover:text-cyan-300 transition-colors duration-200 flex items-center gap-1"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back
               </button>
+
               <div>
-                <label htmlFor="authvault-email" className="block text-gray-400 text-sm mb-2">
+                <label
+                  htmlFor="authvault-email"
+                  className="block text-gray-400 text-sm mb-2"
+                  style={{ fontFamily: 'Orbitron, monospace', fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase' }}
+                >
                   Email address
                 </label>
                 <input
                   id="authvault-email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setGmailWarning(false);
+                  }}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleEmailSubmit(); }}
                   placeholder="you@example.com"
                   autoComplete="email"
                   autoFocus
                   disabled={isLoading}
-                  className="w-full bg-[#0f1f38] border border-cyan-500/20 rounded-lg px-4 py-3 text-white placeholder-gray-500 min-h-[44px] transition-all duration-300 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 disabled:opacity-50"
+                  className="w-full rounded-lg px-4 py-3 text-white placeholder-gray-600 min-h-[44px] transition-all duration-300 focus:outline-none disabled:opacity-50"
+                  style={{
+                    background: '#0f1f38',
+                    border: gmailWarning ? '1px solid rgba(251, 146, 60, 0.5)' : '1px solid rgba(34, 211, 238, 0.2)',
+                    fontSize: '16px',
+                  }}
+                  onFocus={(e) => {
+                    if (!gmailWarning) e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.5)';
+                  }}
+                  onBlur={(e) => {
+                    if (!gmailWarning) e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.2)';
+                  }}
                 />
               </div>
-              <button
-                onClick={handleEmailSubmit}
-                disabled={isLoading || !email}
-                className="w-full py-3 bg-gradient-to-r from-[#FF8C00] to-[#FFB84D] text-gray-900 rounded-lg font-bold tracking-widest uppercase min-h-[44px] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ fontFamily: 'Orbitron, monospace' }}
-              >
-                {isLoading ? <Spinner /> : 'Send Code'}
-              </button>
+
+              {/* Gmail warning */}
+              {gmailWarning && (
+                <div
+                  className="p-3 rounded-lg text-sm"
+                  style={{ background: 'rgba(251, 146, 60, 0.1)', border: '1px solid rgba(251, 146, 60, 0.3)' }}
+                >
+                  <p className="text-orange-400 font-medium mb-2" style={{ fontFamily: 'Orbitron, monospace', fontSize: '11px', letterSpacing: '0.05em' }}>
+                    GMAIL DETECTED
+                  </p>
+                  <p className="text-gray-300 text-sm mb-3">
+                    Gmail accounts should use <span className="text-cyan-400">Google login</span> for the best experience. Email OTP is available for non-Gmail addresses.
+                  </p>
+                  <button
+                    onClick={() => { handleGoogleLogin(); }}
+                    className="w-full py-2.5 rounded-lg font-bold tracking-widest uppercase text-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                    style={{
+                      fontFamily: 'Orbitron, monospace',
+                      background: 'linear-gradient(135deg, #FF8C00, #FFB84D)',
+                      color: '#1a1a2e',
+                      fontSize: '12px',
+                    }}
+                  >
+                    Use Google Login
+                  </button>
+                </div>
+              )}
+
+              {!gmailWarning && (
+                <button
+                  onClick={handleEmailSubmit}
+                  disabled={isLoading || !email}
+                  className="w-full py-3 rounded-lg font-bold tracking-widest uppercase min-h-[44px] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  style={{
+                    fontFamily: 'Orbitron, monospace',
+                    background: 'linear-gradient(135deg, #FF8C00, #FFB84D)',
+                    color: '#1a1a2e',
+                    fontSize: '13px',
+                  }}
+                >
+                  {isLoading ? <Spinner color="#1a1a2e" /> : 'Send Code'}
+                </button>
+              )}
             </div>
           )}
 
           {/* Email verify view */}
           {view === 'email-verify' && (
             <div className="space-y-4">
-              <button onClick={() => { setView('email-input'); setOtpDigits(['', '', '', '', '', '']); }} className="text-cyan-400 text-sm hover:text-cyan-300 transition">
-                &larr; Back
+              <button
+                onClick={() => { setView('email-input'); setOtpDigits(['', '', '', '', '', '']); }}
+                className="text-cyan-400 text-sm hover:text-cyan-300 transition-colors duration-200 flex items-center gap-1"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back
               </button>
-              <p className="text-gray-300 text-sm text-center">
-                Enter the 6-digit code sent to <span className="text-cyan-400">{email}</span>
-              </p>
+
+              <div className="text-center">
+                <p
+                  className="text-gray-500 text-xs uppercase tracking-widest mb-2"
+                  style={{ fontFamily: 'Orbitron, monospace' }}
+                >
+                  Verification Code
+                </p>
+                <p className="text-gray-300 text-sm">
+                  Enter the 6-digit code sent to{' '}
+                  <span className="text-cyan-400" style={{ fontFamily: 'JetBrains Mono, monospace' }}>{email}</span>
+                </p>
+              </div>
 
               {/* OTP inputs */}
               <div className="flex gap-2 justify-center" onPaste={handleOtpPaste}>
@@ -307,8 +488,15 @@ export function LoginModal({
                     onKeyDown={(e) => handleOtpKeyDown(i, e)}
                     autoFocus={i === 0}
                     disabled={isLoading}
-                    className="w-12 h-14 text-center text-xl bg-[#0f1f38] border border-cyan-500/20 rounded-lg text-white transition-all duration-200 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30 focus:outline-none disabled:opacity-50"
-                    style={{ fontFamily: 'JetBrains Mono, monospace' }}
+                    className="w-12 h-14 text-center text-xl text-white rounded-lg transition-all duration-200 focus:outline-none disabled:opacity-50"
+                    style={{
+                      fontFamily: 'JetBrains Mono, monospace',
+                      background: '#0f1f38',
+                      border: digit ? '1px solid rgba(34, 211, 238, 0.5)' : '1px solid rgba(34, 211, 238, 0.2)',
+                      boxShadow: digit ? '0 0 10px rgba(34, 211, 238, 0.1)' : 'none',
+                    }}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.6)'; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = digit ? 'rgba(34, 211, 238, 0.5)' : 'rgba(34, 211, 238, 0.2)'; }}
                     aria-label={`Digit ${i + 1} of 6`}
                   />
                 ))}
@@ -317,11 +505,13 @@ export function LoginModal({
               {/* Resend */}
               <div className="text-center">
                 {resendTimer > 0 ? (
-                  <p className="text-gray-500 text-sm">Resend in {resendTimer}s</p>
+                  <p className="text-gray-500 text-sm">
+                    Resend in <span style={{ fontFamily: 'JetBrains Mono, monospace' }}>{resendTimer}s</span>
+                  </p>
                 ) : (
                   <button
                     onClick={() => { handleEmailSubmit(); setResendTimer(60); }}
-                    className="text-cyan-400 text-sm hover:text-cyan-300 transition"
+                    className="text-cyan-400 text-sm hover:text-cyan-300 transition-colors duration-200"
                   >
                     Resend code
                   </button>
@@ -329,8 +519,9 @@ export function LoginModal({
               </div>
 
               {isLoading && (
-                <div className="flex justify-center">
+                <div className="flex items-center justify-center gap-2 text-cyan-400 text-sm">
                   <Spinner />
+                  <span>Verifying...</span>
                 </div>
               )}
             </div>
@@ -338,14 +529,22 @@ export function LoginModal({
         </div>
 
         {/* Footer */}
-        <div className="px-5 pb-4 bg-[#0F0F23] text-center">
-          <p className="text-gray-600 text-xs">Secured by AuthVault</p>
+        <div
+          className="px-5 py-3 text-center"
+          style={{
+            background: '#0F0F23',
+            borderTop: '1px solid rgba(34, 211, 238, 0.08)',
+          }}
+        >
+          <p className="text-gray-600 text-xs" style={{ fontFamily: 'Orbitron, monospace', fontSize: '10px', letterSpacing: '0.15em' }}>
+            Secured by AuthVault
+          </p>
         </div>
       </div>
 
       <style>{`
         @keyframes authvault-modal-in {
-          from { opacity: 0; transform: scale(0.95) translateY(-8px); }
+          from { opacity: 0; transform: scale(0.92) translateY(-12px); }
           to { opacity: 1; transform: scale(1) translateY(0); }
         }
       `}</style>
@@ -355,26 +554,90 @@ export function LoginModal({
 
 // -- Sub-components --
 
-function WalletButton({ name, icon, disabled, onClick }: { name: string; icon: ReactNode; disabled: boolean; onClick: () => void }) {
+function CornerAccents() {
+  const accentStyle = (position: Record<string, string>): React.CSSProperties => ({
+    position: 'absolute',
+    width: '12px',
+    height: '12px',
+    zIndex: 10,
+    ...position,
+  });
+
+  return (
+    <>
+      {/* Top-left */}
+      <span style={accentStyle({ top: '0', left: '0' })}>
+        <span style={{ position: 'absolute', top: 0, left: 0, width: '12px', height: '1px', background: 'rgba(34, 211, 238, 0.6)' }} />
+        <span style={{ position: 'absolute', top: 0, left: 0, width: '1px', height: '12px', background: 'rgba(34, 211, 238, 0.6)' }} />
+      </span>
+      {/* Top-right */}
+      <span style={accentStyle({ top: '0', right: '0' })}>
+        <span style={{ position: 'absolute', top: 0, right: 0, width: '12px', height: '1px', background: 'rgba(34, 211, 238, 0.6)' }} />
+        <span style={{ position: 'absolute', top: 0, right: 0, width: '1px', height: '12px', background: 'rgba(34, 211, 238, 0.6)' }} />
+      </span>
+      {/* Bottom-left */}
+      <span style={accentStyle({ bottom: '0', left: '0' })}>
+        <span style={{ position: 'absolute', bottom: 0, left: 0, width: '12px', height: '1px', background: 'rgba(34, 211, 238, 0.6)' }} />
+        <span style={{ position: 'absolute', bottom: 0, left: 0, width: '1px', height: '12px', background: 'rgba(34, 211, 238, 0.6)' }} />
+      </span>
+      {/* Bottom-right */}
+      <span style={accentStyle({ bottom: '0', right: '0' })}>
+        <span style={{ position: 'absolute', bottom: 0, right: 0, width: '12px', height: '1px', background: 'rgba(34, 211, 238, 0.6)' }} />
+        <span style={{ position: 'absolute', bottom: 0, right: 0, width: '1px', height: '12px', background: 'rgba(34, 211, 238, 0.6)' }} />
+      </span>
+    </>
+  );
+}
+
+function WalletButton({ name, icon, disabled, loading, onClick }: {
+  name: string;
+  icon: ReactNode;
+  disabled: boolean;
+  loading?: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className="w-full flex items-center gap-4 p-3 bg-[#0f1f38] border border-cyan-500/20 rounded-lg hover:border-cyan-500/40 hover:bg-[#1a2f4a] transition-all duration-300 group disabled:opacity-50 min-h-[44px]"
+      className="w-full flex items-center gap-4 p-3 rounded-lg transition-all duration-300 disabled:opacity-50 min-h-[44px] group"
+      style={{
+        background: '#0f1f38',
+        border: '1px solid rgba(34, 211, 238, 0.15)',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.4)';
+        e.currentTarget.style.background = '#1a2f4a';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.15)';
+        e.currentTarget.style.background = '#0f1f38';
+      }}
       aria-label={`Connect with ${name}`}
     >
       <span className="w-7 h-7 flex items-center justify-center">{icon}</span>
-      <span className="text-white group-hover:text-cyan-400 transition font-medium">{name}</span>
-      <svg className="ml-auto w-4 h-4 text-gray-500 group-hover:text-cyan-400 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+      <span className="text-white text-sm group-hover:text-cyan-400 transition-colors duration-200 font-medium">{name}</span>
+      {loading ? (
+        <span className="ml-auto"><Spinner size={16} /></span>
+      ) : (
+        <svg className="ml-auto w-4 h-4 text-gray-600 group-hover:text-cyan-400 transition-colors duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      )}
     </button>
   );
 }
 
-function Spinner() {
+function Spinner({ color = 'rgba(34, 211, 238, 0.9)', size = 20 }: { color?: string; size?: number }) {
   return (
-    <svg className="w-5 h-5 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+    <svg
+      className="animate-spin"
+      style={{ width: size, height: size, display: 'inline-block' }}
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke={color} strokeWidth="4" />
+      <path style={{ opacity: 0.75 }} fill={color} d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
     </svg>
   );
 }
@@ -394,14 +657,29 @@ function GoogleIcon() {
 
 function EmailIcon() {
   return (
-    <svg className="w-5 h-5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="rgba(34, 211, 238, 0.8)">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
     </svg>
   );
 }
 
 function MetaMaskIcon() {
-  return <svg className="w-7 h-7" viewBox="0 0 24 24"><path fill="#E2761B" d="M20.4 3L13 8.4l1.4-3.3L20.4 3z"/><path fill="#E4761B" d="M3.6 3l7.3 5.5L9.6 5.1 3.6 3z"/><path fill="#D7C1B3" d="M17.8 16.5l-2 3 4.2 1.2 1.2-4.1-3.4-.1zM2.8 16.6l1.2 4.1 4.2-1.2-2-3-3.4.1z"/></svg>;
+  return (
+    <svg className="w-7 h-7" viewBox="0 0 35 33">
+      <path fill="#E2761B" stroke="#E2761B" strokeLinecap="round" strokeLinejoin="round" d="M32.96 1l-13.14 9.72 2.45-5.73L32.96 1z"/>
+      <path fill="#E4761B" stroke="#E4761B" strokeLinecap="round" strokeLinejoin="round" d="M2.66 1l13.02 9.81L13.35 4.99 2.66 1zM28.23 23.53l-3.5 5.34 7.49 2.06 2.14-7.28-6.13-.12zM.92 23.65l2.13 7.28 7.47-2.06-3.48-5.34-6.12.12z"/>
+      <path fill="#E4761B" stroke="#E4761B" strokeLinecap="round" strokeLinejoin="round" d="M10.15 14.51l-2.09 3.17 7.44.34-.26-8-5.09 4.49zM25.46 14.51l-5.17-4.58-.17 8.09 7.44-.34-2.1-3.17zM10.52 28.87l4.49-2.16-3.88-3.03-.61 5.19zM20.61 26.71l4.47 2.16-.59-5.19-3.88 3.03z"/>
+      <path fill="#D7C1B3" stroke="#D7C1B3" strokeLinecap="round" strokeLinejoin="round" d="M25.08 28.87l-4.47-2.16.36 2.91-.04 1.23 4.15-1.98zM10.52 28.87l4.16 1.98-.03-1.23.34-2.91-4.47 2.16z"/>
+      <path fill="#233447" stroke="#233447" strokeLinecap="round" strokeLinejoin="round" d="M14.76 21.86l-3.75-1.1 2.65-1.22 1.1 2.32zM20.86 21.86l1.1-2.32 2.66 1.22-3.76 1.1z"/>
+      <path fill="#CD6116" stroke="#CD6116" strokeLinecap="round" strokeLinejoin="round" d="M10.52 28.87l.64-5.34-4.12.12 3.48 5.22zM24.44 23.53l.64 5.34 3.5-5.22-4.14-.12zM27.56 17.68l-7.44.34.69 3.84 1.1-2.32 2.66 1.22 2.99-3.08zM11.01 20.76l2.65-1.22 1.1 2.32.69-3.84-7.44-.34 2.99 3.08z"/>
+      <path fill="#E4751F" stroke="#E4751F" strokeLinecap="round" strokeLinejoin="round" d="M8.01 17.68l3.12 6.08-.11-3.04-3.01-3.04zM24.57 20.72l-.12 3.04 3.11-6.08-2.99 3.04zM15.46 18.02l-.69 3.84.87 4.49.2-5.91-.38-2.42zM20.12 18.02l-.37 2.41.18 5.92.87-4.49-.68-3.84z"/>
+      <path fill="#F6851B" stroke="#F6851B" strokeLinecap="round" strokeLinejoin="round" d="M20.81 21.86l-.87 4.49.62.44 3.88-3.03.12-3.04-3.75 1.14zM11.01 20.72l.11 3.04 3.88 3.03.62-.44-.87-4.49-3.74-1.14z"/>
+      <path fill="#C0AD9E" stroke="#C0AD9E" strokeLinecap="round" strokeLinejoin="round" d="M20.85 30.85l.04-1.23-.34-.29h-5.48l-.32.29.03 1.23-4.16-1.98 1.46 1.19 2.95 2.04h5.57l2.96-2.04 1.44-1.19-4.15 1.98z"/>
+      <path fill="#161616" stroke="#161616" strokeLinecap="round" strokeLinejoin="round" d="M20.61 26.71l-.62-.44h-4.36l-.62.44-.34 2.91.32-.29h5.48l.34.29-.2-2.91z"/>
+      <path fill="#763D16" stroke="#763D16" strokeLinecap="round" strokeLinejoin="round" d="M33.52 11.35l1.1-5.36L32.96 1l-12.35 9.17 4.76 4.02 6.72 1.97 1.48-1.73-.64-.47 1.03-.94-.79-.61 1.03-.79-.68-.51zM.99 5.99l1.11 5.36-.71.51 1.03.79-.79.61 1.03.94-.64.47 1.48 1.73 6.72-1.97 4.76-4.02L2.66 1 .99 5.99z"/>
+      <path fill="#F6851B" stroke="#F6851B" strokeLinecap="round" strokeLinejoin="round" d="M32.09 16.16l-6.72-1.97 2.09 3.17-3.11 6.08 4.09-.05h6.13l-2.48-7.23zM10.15 14.19l-6.72 1.97-2.43 7.23h6.12l4.08.05-3.12-6.08 2.07-3.17zM20.12 18.02l.43-7.49 1.94-5.24H13.35l1.93 5.24.45 7.49.17 2.43.01 5.9h4.36l.02-5.9.18-2.43z"/>
+    </svg>
+  );
 }
 
 function WalletConnectIcon() {

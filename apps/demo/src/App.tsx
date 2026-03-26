@@ -31,69 +31,128 @@ export default function App() {
   }, [user, signMessage]);
 
   return (
-    <div className="min-h-screen bg-[#0F0F23] text-white flex items-center justify-center">
+    <div
+      className="min-h-screen text-white flex items-center justify-center"
+      style={{
+        background: '#0F0F23',
+        backgroundImage: 'radial-gradient(ellipse at 20% 30%, rgba(255, 140, 0, 0.05) 0%, transparent 50%), radial-gradient(ellipse at 80% 70%, rgba(59, 130, 246, 0.08) 0%, transparent 50%)',
+      }}
+    >
       <div className="max-w-md w-full p-8 space-y-6">
-        <h1
-          className="text-3xl font-bold text-center text-cyan-400 tracking-wide"
-          style={{ fontFamily: 'Orbitron, monospace' }}
-        >
-          AuthVault Demo
-        </h1>
+        <div className="text-center space-y-2">
+          <h1
+            className="text-3xl tracking-widest uppercase"
+            style={{
+              fontFamily: 'Orbitron, monospace',
+              background: 'linear-gradient(135deg, #22d3ee, #3B82F6)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              textShadow: 'none',
+            }}
+          >
+            AuthVault
+          </h1>
+          <p
+            className="text-xs tracking-widest uppercase text-gray-500"
+            style={{ fontFamily: 'Orbitron, monospace' }}
+          >
+            Demo
+          </p>
+        </div>
 
         {status === 'loading' && (
           <div className="flex justify-center">
-            <svg className="w-8 h-8 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            <svg className="w-8 h-8 animate-spin" style={{ color: 'rgba(34, 211, 238, 0.8)' }} fill="none" viewBox="0 0 24 24">
+              <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
           </div>
         )}
 
         {status === 'authenticated' && user ? (
           <div className="space-y-4">
-            <div className="p-4 bg-[#0f1f38] border border-cyan-500/20 rounded-lg">
-              <p className="text-gray-400 text-sm mb-1">Connected as</p>
-              <p className="font-mono text-sm break-all text-cyan-400">
-                {user.evmAddress || 'No address yet'}
+            {/* User info card */}
+            <div
+              className="relative p-5 rounded-lg"
+              style={{
+                background: '#0f1f38',
+                border: '1px solid rgba(34, 211, 238, 0.15)',
+              }}
+            >
+              <p
+                className="text-gray-500 text-xs uppercase tracking-widest mb-2"
+                style={{ fontFamily: 'Orbitron, monospace', fontSize: '10px' }}
+              >
+                Connected as
+              </p>
+              <p
+                className="text-sm break-all mb-3"
+                style={{
+                  fontFamily: 'JetBrains Mono, monospace',
+                  color: user.evmAddress ? '#22d3ee' : '#FB923C',
+                }}
+              >
+                {user.evmAddress || 'Generating address...'}
               </p>
               {user.email && (
-                <p className="text-gray-400 text-sm mt-2">{user.email}</p>
+                <p className="text-gray-400 text-sm">{user.email}</p>
               )}
-              <p className="text-gray-500 text-xs mt-2">
-                Login: {user.loginMethod} {user.oauthProvider ? `(${user.oauthProvider})` : ''}
-              </p>
+              <div className="flex items-center gap-2 mt-2">
+                <span
+                  className="inline-block w-2 h-2 rounded-full"
+                  style={{ background: '#22C55E', boxShadow: '0 0 6px rgba(34, 197, 94, 0.5)' }}
+                />
+                <p className="text-gray-500 text-xs">
+                  {user.loginMethod === 'wallet' ? 'Wallet' : user.oauthProvider ? `${user.oauthProvider}` : 'Email'}
+                </p>
+              </div>
             </div>
 
-            {/* Sign test -- only for social/email users who have a server-managed key */}
+            {/* Sign test */}
             {user.loginMethod !== 'wallet' && user.evmAddress && (
               <div className="space-y-3">
                 <button
                   onClick={handleSignTest}
                   disabled={signing}
-                  className="w-full py-3 px-4 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 rounded-lg font-medium hover:bg-cyan-500/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-3 px-4 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    background: 'rgba(34, 211, 238, 0.08)',
+                    border: '1px solid rgba(34, 211, 238, 0.2)',
+                    color: '#22d3ee',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(34, 211, 238, 0.15)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(34, 211, 238, 0.08)'; }}
                 >
                   {signing ? (
                     <span className="flex items-center justify-center gap-2">
                       <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                       </svg>
                       Signing...
                     </span>
-                  ) : 'Test: Sign Message'}
+                  ) : (
+                    <span style={{ fontFamily: 'Orbitron, monospace', fontSize: '12px', letterSpacing: '0.1em', textTransform: 'uppercase' as const }}>
+                      Test: Sign Message
+                    </span>
+                  )}
                 </button>
 
                 {sigResult && (
-                  <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg space-y-1">
-                    <p className="text-green-400 text-xs font-medium">Signature (secp256k1):</p>
-                    <p className="font-mono text-xs text-green-300 break-all">{sigResult}</p>
+                  <div className="p-3 rounded-lg space-y-1" style={{ background: 'rgba(34, 197, 94, 0.08)', border: '1px solid rgba(34, 197, 94, 0.2)' }}>
+                    <p className="text-xs font-medium" style={{ color: '#22C55E', fontFamily: 'Orbitron, monospace', fontSize: '10px', letterSpacing: '0.1em' }}>
+                      SIGNATURE (SECP256K1)
+                    </p>
+                    <p className="text-xs break-all" style={{ fontFamily: 'JetBrains Mono, monospace', color: '#86efac' }}>
+                      {sigResult}
+                    </p>
                     <p className="text-gray-500 text-xs">Seamless key signing: OK</p>
                   </div>
                 )}
 
                 {sigError && (
-                  <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-                    <p className="text-red-400 text-xs">{sigError}</p>
+                  <div className="p-3 rounded-lg" style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                    <p className="text-xs" style={{ color: '#EF4444' }}>{sigError}</p>
                   </div>
                 )}
               </div>
@@ -101,7 +160,18 @@ export default function App() {
 
             <button
               onClick={logout}
-              className="w-full py-3 px-4 bg-red-600/20 border border-red-500/30 text-red-400 rounded-lg font-medium hover:bg-red-600/30 transition-all duration-200"
+              className="w-full py-3 px-4 rounded-lg font-medium transition-all duration-200"
+              style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+                color: '#EF4444',
+                fontFamily: 'Orbitron, monospace',
+                fontSize: '12px',
+                letterSpacing: '0.15em',
+                textTransform: 'uppercase' as const,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; }}
             >
               Logout
             </button>
@@ -110,18 +180,34 @@ export default function App() {
           <div className="space-y-4">
             <button
               onClick={() => setShowLogin(true)}
-              className="w-full py-4 bg-gradient-to-r from-[#FF8C00] to-[#FFB84D] text-gray-900 rounded-lg font-bold tracking-widest uppercase transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-              style={{ fontFamily: 'Orbitron, monospace' }}
+              className="w-full py-4 rounded-lg font-bold tracking-widest uppercase transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+              style={{
+                fontFamily: 'Orbitron, monospace',
+                background: 'linear-gradient(135deg, #FF8C00, #FFB84D)',
+                color: '#1a1a2e',
+                boxShadow: '0 0 30px rgba(255, 140, 0, 0.2)',
+                fontSize: '14px',
+              }}
             >
               Connect to Play
             </button>
             <p className="text-gray-500 text-sm text-center">
-              Sign in with Google, Email, or connect your wallet
+              Sign in with your wallet, Google, or email
             </p>
           </div>
         ) : null}
 
-        <p className="text-xs text-gray-600 text-center">AuthVault MVP v0.1.0</p>
+        <p
+          className="text-center"
+          style={{
+            fontFamily: 'Orbitron, monospace',
+            fontSize: '10px',
+            letterSpacing: '0.15em',
+            color: 'rgba(107, 114, 128, 0.5)',
+          }}
+        >
+          AuthVault MVP v0.1.0
+        </p>
       </div>
 
       <LoginModal
@@ -129,10 +215,11 @@ export default function App() {
         onClose={() => setShowLogin(false)}
         onSuccess={() => setShowLogin(false)}
         providers={{
-          social: ['google', 'email'],
           wallets: ['metamask', 'walletconnect'],
+          social: ['google', 'email'],
         }}
         title="Connect to Play"
+        subtitle="Sign in with your wallet or account"
       />
     </div>
   );
