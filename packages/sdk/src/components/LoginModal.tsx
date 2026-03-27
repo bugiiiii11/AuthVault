@@ -257,7 +257,7 @@ export function LoginModal({
           }} />
 
           {/* Content */}
-          <div className="px-6 py-5" aria-busy={isLoading}>
+          <div className="px-6 pt-5 pb-6" aria-busy={isLoading}>
             {/* Error message */}
             {displayError && (
               <div
@@ -334,8 +334,7 @@ export function LoginModal({
                 {providers.social?.includes('google') && (
                   <HUDButton
                     icon={<GoogleIcon />}
-                    label="Continue with Google"
-                    hint="Gmail"
+                    label="Google"
                     disabled={isLoading || !supabaseClient}
                     onClick={handleGoogleLogin}
                   />
@@ -343,8 +342,7 @@ export function LoginModal({
                 {providers.social?.includes('email') && (
                   <HUDButton
                     icon={<EmailIcon />}
-                    label="Continue with Email"
-                    hint="Non-Gmail"
+                    label="Email"
                     disabled={isLoading}
                     onClick={() => setView('email-input')}
                   />
@@ -410,21 +408,22 @@ export function LoginModal({
 
                 {/* Gmail warning */}
                 {gmailWarning && (
-                  <div
-                    className="p-4 rounded-lg"
-                    style={{
-                      background: 'rgba(251, 146, 60, 0.06)',
-                      border: '1px solid rgba(251, 146, 60, 0.2)',
-                      boxShadow: 'inset 0 0 20px rgba(251, 146, 60, 0.03)',
-                    }}
-                  >
-                    <p className="font-medium mb-2" style={{ fontFamily: 'Orbitron, monospace', fontSize: '10px', letterSpacing: '0.1em', color: '#FB923C' }}>
-                      GMAIL DETECTED
-                    </p>
-                    <p className="text-gray-300 text-sm mb-3" style={{ fontFamily: 'Inter, sans-serif' }}>
-                      Gmail accounts should use <span style={{ color: '#22d3ee' }}>Google login</span> for the best experience.
-                    </p>
-                    <CTAButton onClick={handleGoogleLogin} text="Use Google Login" variant="accent" />
+                  <div className="space-y-3">
+                    <div
+                      className="flex items-start gap-2.5 p-3 rounded-lg text-sm"
+                      style={{
+                        background: 'rgba(251, 146, 60, 0.06)',
+                        border: '1px solid rgba(251, 146, 60, 0.15)',
+                      }}
+                    >
+                      <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#FB923C">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-gray-300" style={{ fontFamily: 'Inter, sans-serif' }}>
+                        Gmail accounts work best with Google login.
+                      </span>
+                    </div>
+                    <CTAButton onClick={handleGoogleLogin} text="Continue with Google" variant="accent" />
                   </div>
                 )}
 
@@ -513,19 +512,6 @@ export function LoginModal({
                 )}
               </div>
             )}
-          </div>
-
-          {/* Footer */}
-          <div className="px-6 py-3 text-center" style={{ borderTop: '1px solid rgba(34, 211, 238, 0.06)' }}>
-            <p style={{
-              fontFamily: 'Orbitron, monospace',
-              fontSize: '9px',
-              letterSpacing: '0.2em',
-              color: 'rgba(107, 114, 128, 0.4)',
-              textTransform: 'uppercase',
-            }}>
-              Secured by SignaKit
-            </p>
           </div>
 
           {/* Bottom edge accent */}

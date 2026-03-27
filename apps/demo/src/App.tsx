@@ -14,27 +14,6 @@ export default function App() {
       }}
     >
       <div className="max-w-md w-full p-8 space-y-6">
-        <div className="text-center space-y-2">
-          <h1
-            className="text-3xl tracking-widest uppercase"
-            style={{
-              fontFamily: 'Orbitron, monospace',
-              background: 'linear-gradient(135deg, #22d3ee, #3B82F6)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              textShadow: 'none',
-            }}
-          >
-            SignaKit
-          </h1>
-          <p
-            className="text-xs tracking-widest uppercase text-gray-500"
-            style={{ fontFamily: 'Orbitron, monospace' }}
-          >
-            Demo
-          </p>
-        </div>
-
         {status === 'loading' && (
           <div className="flex justify-center">
             <svg className="w-8 h-8 animate-spin" style={{ color: 'rgba(34, 211, 238, 0.8)' }} fill="none" viewBox="0 0 24 24">
@@ -46,21 +25,48 @@ export default function App() {
 
         {status === 'authenticated' && user ? (
           <div className="space-y-4">
+            {/* User card */}
             <div
-              className="relative p-5 rounded-lg"
+              className="relative p-5 rounded-xl overflow-hidden"
               style={{
-                background: '#0f1f38',
+                background: 'linear-gradient(180deg, rgba(15, 31, 56, 0.95) 0%, rgba(15, 15, 35, 0.98) 100%)',
                 border: '1px solid rgba(34, 211, 238, 0.15)',
+                boxShadow: '0 0 30px rgba(34, 211, 238, 0.05), inset 0 1px 0 rgba(34, 211, 238, 0.08)',
               }}
             >
+              {/* Status badge */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="w-2 h-2 rounded-full"
+                    style={{ background: '#22C55E', boxShadow: '0 0 8px rgba(34, 197, 94, 0.6)' }}
+                  />
+                  <span
+                    className="uppercase"
+                    style={{ fontFamily: 'Orbitron, monospace', fontSize: '10px', letterSpacing: '0.15em', color: '#22C55E' }}
+                  >
+                    Connected
+                  </span>
+                </div>
+                <span
+                  className="px-2 py-0.5 rounded"
+                  style={{
+                    fontFamily: 'Orbitron, monospace',
+                    fontSize: '9px',
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    color: 'rgba(34, 211, 238, 0.7)',
+                    background: 'rgba(34, 211, 238, 0.08)',
+                    border: '1px solid rgba(34, 211, 238, 0.15)',
+                  }}
+                >
+                  {user.loginMethod === 'wallet' ? 'Wallet' : user.oauthProvider || 'Email'}
+                </span>
+              </div>
+
+              {/* Address */}
               <p
-                className="text-gray-500 text-xs uppercase tracking-widest mb-2"
-                style={{ fontFamily: 'Orbitron, monospace', fontSize: '10px' }}
-              >
-                Connected as
-              </p>
-              <p
-                className="text-sm break-all mb-3"
+                className="text-sm break-all mb-1"
                 style={{
                   fontFamily: 'JetBrains Mono, monospace',
                   color: user.evmAddress ? '#22d3ee' : '#FB923C',
@@ -68,70 +74,77 @@ export default function App() {
               >
                 {user.evmAddress || 'Generating address...'}
               </p>
+
+              {/* Email */}
               {user.email && (
-                <p className="text-gray-400 text-sm">{user.email}</p>
-              )}
-              <div className="flex items-center gap-2 mt-2">
-                <span
-                  className="inline-block w-2 h-2 rounded-full"
-                  style={{ background: '#22C55E', boxShadow: '0 0 6px rgba(34, 197, 94, 0.5)' }}
-                />
-                <p className="text-gray-500 text-xs">
-                  {user.loginMethod === 'wallet' ? 'Wallet' : user.oauthProvider ? `${user.oauthProvider}` : 'Email'}
+                <p className="text-gray-400 text-sm mt-2" style={{ fontFamily: 'Inter, sans-serif' }}>
+                  {user.email}
                 </p>
-              </div>
+              )}
             </div>
 
+            {/* Logout */}
             <button
               onClick={logout}
-              className="w-full py-3 px-4 rounded-lg font-medium transition-all duration-200"
+              className="w-full py-3 rounded-lg transition-all duration-300"
               style={{
-                background: 'rgba(239, 68, 68, 0.1)',
+                background: 'rgba(239, 68, 68, 0.06)',
                 border: '1px solid rgba(239, 68, 68, 0.2)',
-                color: '#EF4444',
+                color: '#f87171',
                 fontFamily: 'Orbitron, monospace',
-                fontSize: '12px',
+                fontSize: '11px',
                 letterSpacing: '0.15em',
-                textTransform: 'uppercase' as const,
+                textTransform: 'uppercase',
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)';
+                e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+                e.currentTarget.style.boxShadow = '0 0 20px rgba(239, 68, 68, 0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.06)';
+                e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             >
               Logout
             </button>
           </div>
         ) : status !== 'loading' ? (
-          <div className="space-y-4">
+          <div className="text-center">
             <button
               onClick={() => setShowLogin(true)}
-              className="w-full py-4 rounded-lg font-bold tracking-widest uppercase transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+              className="px-10 py-3.5 rounded-lg transition-all duration-300"
               style={{
                 fontFamily: 'Orbitron, monospace',
-                background: 'linear-gradient(135deg, #FF8C00, #FFB84D)',
-                color: '#1a1a2e',
-                boxShadow: '0 0 30px rgba(255, 140, 0, 0.2)',
-                fontSize: '14px',
+                fontSize: '13px',
+                letterSpacing: '0.15em',
+                textTransform: 'uppercase',
+                fontWeight: 700,
+                background: 'rgba(34, 211, 238, 0.06)',
+                color: '#22d3ee',
+                border: '1px solid rgba(34, 211, 238, 0.3)',
+                boxShadow: '0 0 15px rgba(34, 211, 238, 0.08)',
               }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.background = 'rgba(34, 211, 238, 0.12)';
+                e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.5)';
+                e.currentTarget.style.boxShadow = '0 0 25px rgba(34, 211, 238, 0.15)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.background = 'rgba(34, 211, 238, 0.06)';
+                e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.3)';
+                e.currentTarget.style.boxShadow = '0 0 15px rgba(34, 211, 238, 0.08)';
+              }}
+              onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.97)'; }}
+              onMouseUp={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
             >
-              Connect to Play
+              {'< Connect Wallet >'}
             </button>
-            <p className="text-gray-500 text-sm text-center">
-              Sign in with your wallet, Google, or email
-            </p>
           </div>
         ) : null}
-
-        <p
-          className="text-center"
-          style={{
-            fontFamily: 'Orbitron, monospace',
-            fontSize: '10px',
-            letterSpacing: '0.15em',
-            color: 'rgba(107, 114, 128, 0.5)',
-          }}
-        >
-          SignaKit v0.1.0
-        </p>
       </div>
 
       <LoginModal
