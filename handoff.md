@@ -11,6 +11,19 @@
 | 5 | 2026-03-25 | Bug fixes + architecture decision | Signing fixed, key management redesigned to server-assisted seamless mode |
 | 6 | 2026-03-26 | Seamless key management implementation | Full HKDF + Vault key storage, X25519 transport, libsodium removed from backend |
 | 7 | 2026-03-26 | Bug fixes, UI redesign, rename to SignaKit | Address persistence fix, identity linking, Swarm Resistance UI, Gmail detection, full rebrand |
+| 8 | 2026-03-27 | Testing, bug fixes, HUD modal redesign | Google OAuth first-login fix, WalletConnect fixes, full HUD glass modal redesign, demo cleanup |
+
+## What Was Done (Session 8) -- Testing, Bug Fixes, HUD Modal Redesign
+
+1. **Google OAuth first-login fix** -- New Google users got 401 because Supabase admin API needs a moment to propagate freshly-created user records. Added retry logic (3 attempts, increasing delay) in `onAuthStateChange` handler. Also added 429 rate-limit detection to stop retrying into more 429s. Files: `SignaKitProvider.tsx`. Committed: dd7027a, 7566479.
+
+2. **WalletConnect fixes** -- Three issues fixed: (a) stale sessions in localStorage caused `enable()` to skip pairing and hang forever -- now disconnects stale sessions before connecting; (b) after disconnect, provider is recreated fresh instead of reusing broken instance; (c) added 2-minute timeout to prevent infinite hangs. Files: `connectors/walletconnect.ts`. Committed: 5effdb8, 42ea4f3, 1781128.
+
+3. **LoginModal HUD glass redesign** -- Full visual overhaul matching swarmresistance.com: glass panel with backdrop-blur, HUD corner accents with animated glow dots, uniform `< BUTTON >` style with bracket decorators for all 4 login options, inline SVG sizing (fixes giant icon bug when Tailwind classes don't apply), proper spacing (500px modal, px-10 content padding, pb-12 bottom). Removed subtitle, footer, divider. Simplified labels to "Wallet"/"Social". Files: `components/LoginModal.tsx`. Committed: ce5307e through 6439017 (8 commits).
+
+4. **Demo app cleanup** -- Removed SignaKit branding, version text, sign-message test button. Clean `< Connect Wallet >` button in HUD style. Connected state shows status badge + provider pill. Added SVG favicon. Files: `apps/demo/src/App.tsx`, `apps/demo/public/favicon.svg`, `apps/demo/index.html`. Committed: e4a7fd1, 228e273.
+
+**Commits this session:** dd7027a, 5d7e5ad, 5effdb8, 42ea4f3, ce5307e, e4a7fd1, 228e273, 097092b, 80625b3, 7da4e8a, 7566479, 04cb5d8, 6439017, 1781128
 
 ## What Was Done (Session 7) -- Bug Fixes, UI Redesign, Rename to SignaKit
 
@@ -138,18 +151,19 @@
 ## Known Issues
 
 - Gmail email OTP: Supabase auto-links Gmail identities with Google OAuth, causing verifyOtp to fail. Handled by Gmail detection in LoginModal (redirects to Google login). Not a bug, by design.
-- mjerabek2@gmail.com: key generation returned 500 on one attempt. May be transient. Check Railway logs if it recurs.
-- WalletConnect: loading spinner shows indefinitely if no wallet scans the QR. Not a regression, standard WalletConnect behavior.
+- Railway SSL: intermittent `ERR_SSL_PROTOCOL_ERROR` in some browsers. Cert is valid (Let's Encrypt, expires Jun 2026) but OCSP revocation checks fail on Windows. Backend responds fine over curl. May need Railway support or domain re-add.
+- WalletConnect + Trust Wallet: Trust Wallet crashes with "TypeError: undefined is not a function" when connecting via WalletConnect v2. Works fine with MetaMask mobile. Likely a Trust Wallet compatibility issue with WalletConnect v2.23.8.
+- WalletConnect built-in modal: uses @reown/appkit which preloads fonts (harmless console warnings). Modal styling is limited -- for full custom design, would need own QR code rendering.
 
 ## What To Do Next
 
 | Priority | Task | Details |
 |----------|------|---------|
-| 1 | Test multi-device | Same Google account in 2 browsers → same wallet address, signing works from both |
-| 2 | Test mjerabek1 Google login | Should now work with identity linking fix (finds existing user by supabase_auth_id) |
-| 3 | Investigate mjerabek2 key gen 500 | POST /api/keys/generate returned 500 for this user. Check Railway logs |
-| 4 | Integrate into Swarm Resistance | Replace Web3Auth with `@signakit/sdk` in game frontend |
-| 5 | Optionally rename Railway/Vercel env vars | Old names still work but can rename AUTHVAULT_* → SIGNAKIT_* at convenience |
+| 1 | Fix Railway SSL | Try deleting and re-adding domain in Railway Networking settings, or contact Railway support |
+| 2 | WalletConnect + Trust Wallet | Investigate Trust Wallet crash. May need to test with older WalletConnect version or different provider config |
+| 3 | Test multi-device | Same Google account in 2 browsers → same wallet address, signing works from both |
+| 4 | Integrate into Swarm Resistance | Replace Web3Auth with `@signakit/sdk` in game frontend. Modal design ready for integration |
+| 5 | LoginModal mobile responsive | Test and optimize modal on mobile viewports |
 
 ## Deployment Env Vars
 
@@ -177,7 +191,7 @@ VITE_WALLETCONNECT_PROJECT_ID
 | `packages/sdk/src/core/` | HTTP client, device share, session, key manager, recovery |
 | `packages/sdk/src/hooks/` | useAuth, useWallet, useSigning |
 | `packages/sdk/src/connectors/` | MetaMask, WalletConnect, Coinbase |
-| `packages/sdk/src/components/LoginModal.tsx` | Auth modal -- all methods + recovery-setup + recovery-password views |
+| `packages/sdk/src/components/LoginModal.tsx` | Auth modal -- HUD glass design, all inline styles, 4 login methods |
 | `packages/sdk/src/SignaKitProvider.tsx` | Provider -- Supabase client, handleAuthResponse, key gen, recovery state |
 | `packages/sdk/src/core/privateKeyStore.ts` | IndexedDB store for full encrypted private key (seamless mode) |
 | `apps/backend/src/services/keyDerivation.ts` | HKDF-SHA256 key derivation service |
@@ -187,5 +201,5 @@ VITE_WALLETCONNECT_PROJECT_ID
 | `apps/backend/src/middleware/` | JWT auth, rate limiting |
 | `apps/backend/Dockerfile` | Production Docker build (fresh pnpm install in runner) |
 | `apps/demo/src/main.tsx` | Demo entry -- SignaKitProvider with all env vars |
-| `apps/demo/src/App.tsx` | Demo app -- login UI + sign-message test button |
+| `apps/demo/src/App.tsx` | Demo app -- Connect Wallet button + connected state card |
 | `supabase/migrations/` | 7 SQL files (applied) |

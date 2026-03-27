@@ -5,14 +5,14 @@ SignaKit (formerly AuthVault) -- self-hosted Web3Auth replacement for Swarm Resi
 Authentication + transaction signing only. No wallet UI, no token display, no custody.
 
 ## Current State
-- Session: 7 complete
-- Phase: All bugs fixed, UI redesigned, renamed to SignaKit. Next: test multi-device, integrate into Swarm Resistance
+- Session: 8 complete
+- Phase: Google/MetaMask/Email login tested and working. HUD modal redesign done. Next: fix Railway SSL, WalletConnect+Trust Wallet, integrate into Swarm Resistance
 - Repo: github.com/bugiiiii11/AuthVault (folder name kept, package names renamed to signakit)
 - Supabase: project hldkdiibvsdtgxnqaaxq, supabase_vault v0.3.1 installed
 - Build: 4/4 packages clean, 33/33 crypto tests passing
 - Backend: live at authvaultbackend-production.up.railway.app (no libsodium -- Node.js crypto only)
 - Demo: live at auth-vault-demo.vercel.app
-- Next blocker: test multi-device flow, integrate into Swarm Resistance
+- Next blocker: fix Railway SSL, WalletConnect+Trust Wallet, integrate into Swarm Resistance
 
 ## Tech Stack
 - Monorepo: Turborepo + pnpm 10
