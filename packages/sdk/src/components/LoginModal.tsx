@@ -245,16 +245,7 @@ export function LoginModal({
             >
               {title}
             </h2>
-            <p className="text-gray-400 text-sm mt-1.5" style={{ fontFamily: 'Inter, sans-serif' }}>
-              {subtitle}
-            </p>
           </div>
-
-          {/* Separator */}
-          <div className="mx-5" style={{
-            height: '1px',
-            background: 'linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.15), transparent)',
-          }} />
 
           {/* Content */}
           <div className="px-6 pt-5 pb-6" aria-busy={isLoading}>
@@ -278,79 +269,71 @@ export function LoginModal({
 
             {/* ---- Main view ---- */}
             {view === 'main' && (
-              <div className="space-y-3">
-                {/* Wallet section */}
+              <div className="space-y-5">
+                {/* Wallet options */}
                 {providers.wallets && providers.wallets.length > 0 && (
-                  <SectionLabel text="Web3 Wallet" />
-                )}
-
-                {providers.wallets?.includes('metamask') && (
-                  <HUDButton
-                    icon={<MetaMaskIcon />}
-                    label="MetaMask"
-                    disabled={isLoading}
-                    loading={connectingWallet === 'metamask'}
-                    onClick={() => handleWalletConnect('metamask')}
-                  />
-                )}
-                {providers.wallets?.includes('walletconnect') && (
-                  <HUDButton
-                    icon={<WalletConnectIcon />}
-                    label="WalletConnect"
-                    disabled={isLoading}
-                    loading={connectingWallet === 'walletconnect'}
-                    onClick={() => handleWalletConnect('walletconnect')}
-                  />
-                )}
-                {providers.wallets?.includes('coinbase') && (
-                  <HUDButton
-                    icon={<CoinbaseIcon />}
-                    label="Coinbase Wallet"
-                    disabled={isLoading}
-                    loading={connectingWallet === 'coinbase'}
-                    onClick={() => handleWalletConnect('coinbase')}
-                  />
-                )}
-
-                {/* Divider */}
-                {providers.social && providers.social.length > 0 && (
-                  <div className="flex items-center gap-3 py-1">
-                    <div className="flex-1" style={{ height: '1px', background: 'linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.12), transparent)' }} />
-                    <span
-                      className="text-gray-600 uppercase"
-                      style={{ fontFamily: 'Orbitron, monospace', fontSize: '10px', letterSpacing: '0.15em' }}
-                    >
-                      or
-                    </span>
-                    <div className="flex-1" style={{ height: '1px', background: 'linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.12), transparent)' }} />
+                  <div className="space-y-2.5">
+                    <SectionLabel text="Wallet" />
+                    <div className="space-y-2">
+                      {providers.wallets?.includes('metamask') && (
+                        <CTAButton
+                          onClick={() => handleWalletConnect('metamask')}
+                          text="MetaMask"
+                          disabled={isLoading}
+                          loading={connectingWallet === 'metamask'}
+                          icon={<MetaMaskIcon />}
+                        />
+                      )}
+                      {providers.wallets?.includes('walletconnect') && (
+                        <CTAButton
+                          onClick={() => handleWalletConnect('walletconnect')}
+                          text="WalletConnect"
+                          disabled={isLoading}
+                          loading={connectingWallet === 'walletconnect'}
+                          icon={<WalletConnectIcon />}
+                        />
+                      )}
+                      {providers.wallets?.includes('coinbase') && (
+                        <CTAButton
+                          onClick={() => handleWalletConnect('coinbase')}
+                          text="Coinbase Wallet"
+                          disabled={isLoading}
+                          loading={connectingWallet === 'coinbase'}
+                          icon={<CoinbaseIcon />}
+                        />
+                      )}
+                    </div>
                   </div>
                 )}
 
-                {/* Account section */}
+                {/* Social options */}
                 {providers.social && providers.social.length > 0 && (
-                  <SectionLabel text="Account" />
-                )}
-
-                {providers.social?.includes('google') && (
-                  <HUDButton
-                    icon={<GoogleIcon />}
-                    label="Google"
-                    disabled={isLoading || !supabaseClient}
-                    onClick={handleGoogleLogin}
-                  />
-                )}
-                {providers.social?.includes('email') && (
-                  <HUDButton
-                    icon={<EmailIcon />}
-                    label="Email"
-                    disabled={isLoading}
-                    onClick={() => setView('email-input')}
-                  />
+                  <div className="space-y-2.5">
+                    <SectionLabel text="Social" />
+                    <div className="space-y-2">
+                      {providers.social?.includes('google') && (
+                        <CTAButton
+                          onClick={handleGoogleLogin}
+                          text="Google"
+                          disabled={isLoading || !supabaseClient}
+                          icon={<GoogleIcon />}
+                        />
+                      )}
+                      {providers.social?.includes('email') && (
+                        <CTAButton
+                          onClick={() => setView('email-input')}
+                          text="Email"
+                          disabled={isLoading}
+                          icon={<EmailIcon />}
+                        />
+                      )}
+                    </div>
+                  </div>
                 )}
 
                 {/* Connecting status */}
                 {isConnecting && (
-                  <div className="flex items-center justify-center gap-2.5 py-3">
+                  <div className="flex items-center justify-center gap-2.5 py-2">
                     <Spinner />
                     <span className="text-sm" style={{ color: '#22d3ee', fontFamily: 'Inter, sans-serif' }}>
                       Confirm in your wallet...
@@ -613,104 +596,50 @@ function SectionLabel({ text, center }: { text: string; center?: boolean }) {
   );
 }
 
-function HUDButton({ icon, label, hint, disabled, loading, onClick }: {
-  icon: ReactNode;
-  label: string;
-  hint?: string;
-  disabled?: boolean;
-  loading?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className="w-full flex items-center gap-3.5 px-4 py-3 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed min-h-[48px] group"
-      style={{
-        background: 'rgba(15, 31, 56, 0.5)',
-        border: '1px solid rgba(34, 211, 238, 0.1)',
-      }}
-      onMouseEnter={(e) => {
-        if (!disabled) {
-          e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.35)';
-          e.currentTarget.style.background = 'rgba(15, 31, 56, 0.8)';
-          e.currentTarget.style.boxShadow = '0 0 20px rgba(34, 211, 238, 0.06), inset 0 0 20px rgba(34, 211, 238, 0.03)';
-          e.currentTarget.style.transform = 'translateY(-1px)';
-        }
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.1)';
-        e.currentTarget.style.background = 'rgba(15, 31, 56, 0.5)';
-        e.currentTarget.style.boxShadow = 'none';
-        e.currentTarget.style.transform = 'translateY(0)';
-      }}
-      aria-label={label}
-    >
-      <span className="w-7 h-7 flex items-center justify-center shrink-0">{icon}</span>
-      <span
-        className="text-sm font-medium transition-colors duration-200"
-        style={{ fontFamily: 'Inter, sans-serif', color: loading ? '#22d3ee' : 'white' }}
-      >
-        {label}
-      </span>
-      {hint && (
-        <span className="ml-auto text-xs shrink-0" style={{ color: 'rgba(107, 114, 128, 0.5)', fontFamily: 'Orbitron, monospace', fontSize: '9px', letterSpacing: '0.05em' }}>
-          {hint}
-        </span>
-      )}
-      {loading ? (
-        <span className="ml-auto shrink-0"><Spinner size={16} /></span>
-      ) : !hint ? (
-        <svg className="ml-auto w-4 h-4 shrink-0 transition-all duration-200" style={{ color: 'rgba(107, 114, 128, 0.4)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-        </svg>
-      ) : null}
-    </button>
-  );
-}
 
-function CTAButton({ onClick, disabled, text, loading, variant = 'primary' }: {
+function CTAButton({ onClick, disabled, text, loading, variant = 'primary', icon }: {
   onClick: () => void;
   disabled?: boolean;
   text?: string;
   loading?: boolean;
   variant?: 'primary' | 'accent';
+  icon?: ReactNode;
 }) {
   const isPrimary = variant === 'primary';
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className="w-full py-3 rounded-lg min-h-[48px] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+      className="w-full py-3 rounded-lg min-h-[48px] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
       style={{
         fontFamily: 'Orbitron, monospace',
-        fontSize: '12px',
-        letterSpacing: '0.15em',
+        fontSize: '11px',
+        letterSpacing: '0.12em',
         textTransform: 'uppercase',
         fontWeight: 700,
         background: isPrimary ? 'rgba(34, 211, 238, 0.06)' : 'linear-gradient(135deg, #FF8C00, #FFB84D)',
         color: isPrimary ? '#22d3ee' : '#1a1a2e',
-        border: isPrimary ? '1px solid rgba(34, 211, 238, 0.3)' : 'none',
-        boxShadow: isPrimary ? '0 0 15px rgba(34, 211, 238, 0.08)' : '0 0 20px rgba(255, 140, 0, 0.15)',
+        border: isPrimary ? '1px solid rgba(34, 211, 238, 0.25)' : 'none',
+        boxShadow: isPrimary ? '0 0 15px rgba(34, 211, 238, 0.06)' : '0 0 20px rgba(255, 140, 0, 0.15)',
       }}
       onMouseEnter={(e) => {
         if (!disabled) {
-          e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+          e.currentTarget.style.transform = 'translateY(-2px)';
           if (isPrimary) {
             e.currentTarget.style.background = 'rgba(34, 211, 238, 0.12)';
-            e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.5)';
-            e.currentTarget.style.boxShadow = '0 0 25px rgba(34, 211, 238, 0.15)';
+            e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.45)';
+            e.currentTarget.style.boxShadow = '0 0 25px rgba(34, 211, 238, 0.12)';
           } else {
             e.currentTarget.style.boxShadow = '0 0 30px rgba(255, 140, 0, 0.3)';
           }
         }
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'translateY(0) scale(1)';
+        e.currentTarget.style.transform = 'translateY(0)';
         if (isPrimary) {
           e.currentTarget.style.background = 'rgba(34, 211, 238, 0.06)';
-          e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.3)';
-          e.currentTarget.style.boxShadow = '0 0 15px rgba(34, 211, 238, 0.08)';
+          e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.25)';
+          e.currentTarget.style.boxShadow = '0 0 15px rgba(34, 211, 238, 0.06)';
         } else {
           e.currentTarget.style.boxShadow = '0 0 20px rgba(255, 140, 0, 0.15)';
         }
@@ -719,10 +648,17 @@ function CTAButton({ onClick, disabled, text, loading, variant = 'primary' }: {
         if (!disabled) e.currentTarget.style.transform = 'scale(0.97)';
       }}
       onMouseUp={(e) => {
-        if (!disabled) e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+        if (!disabled) e.currentTarget.style.transform = 'translateY(-2px)';
       }}
     >
-      {loading ? <Spinner color={isPrimary ? '#22d3ee' : '#1a1a2e'} /> : text && <span>{'< '}{text}{' >'}</span>}
+      {loading ? (
+        <Spinner color={isPrimary ? '#22d3ee' : '#1a1a2e'} />
+      ) : (
+        <>
+          {icon && <span className="w-5 h-5 flex items-center justify-center shrink-0">{icon}</span>}
+          {text && <span>{'< '}{text}{' >'}</span>}
+        </>
+      )}
     </button>
   );
 }
