@@ -154,13 +154,12 @@ export function LoginModal({
             {/* Close */}
             <button
               onClick={onClose}
-              className="absolute top-5 right-5 w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-200"
-              style={{ color: 'rgba(156,163,175,0.6)', border: '1px solid rgba(34,211,238,0.12)', background: 'rgba(15,31,56,0.5)' }}
+              style={{ position: 'absolute', top: '20px', right: '20px', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', transition: 'all 0.2s', color: 'rgba(156,163,175,0.6)', border: '1px solid rgba(34,211,238,0.12)', background: 'rgba(15,31,56,0.5)', cursor: 'pointer' }}
               onMouseEnter={(e) => { e.currentTarget.style.color = '#22d3ee'; e.currentTarget.style.borderColor = 'rgba(34,211,238,0.35)'; e.currentTarget.style.boxShadow = '0 0 15px rgba(34,211,238,0.15)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(156,163,175,0.6)'; e.currentTarget.style.borderColor = 'rgba(34,211,238,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
               aria-label="Close"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+              <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
 
             {logo && <div className="mb-4">{logo}</div>}
@@ -174,10 +173,9 @@ export function LoginModal({
           <div className="px-10 pt-2 pb-10" aria-busy={isLoading}>
 
             {displayError && (
-              <div className="mb-5 p-3.5 rounded-lg flex items-start gap-3" role="alert"
-                style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
-                <svg className="w-5 h-5 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#f87171"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.072 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
-                <span className="text-sm" style={{ color: '#f87171' }}>{displayError}</span>
+              <div role="alert" style={{ marginBottom: '20px', padding: '14px', borderRadius: '8px', display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
+                <svg style={{ width: '18px', height: '18px', minWidth: '18px', marginTop: '2px' }} fill="none" viewBox="0 0 24 24" stroke="#f87171"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.072 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
+                <span style={{ color: '#f87171', fontSize: '14px', fontFamily: 'Inter, sans-serif' }}>{displayError}</span>
               </div>
             )}
 
@@ -210,7 +208,7 @@ export function LoginModal({
                   </div>
                 )}
                 {isConnecting && (
-                  <div className="flex items-center justify-center gap-3 py-2">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '12px 0 4px' }}>
                     <Spinner /><span style={{ color: '#22d3ee', fontFamily: 'Inter, sans-serif', fontSize: '14px' }}>Confirm in your wallet...</span>
                   </div>
                 )}
@@ -238,9 +236,9 @@ export function LoginModal({
                 </div>
                 {gmailWarning && (
                   <div className="space-y-4">
-                    <div className="flex items-start gap-3 p-3.5 rounded-lg" style={{ background: 'rgba(251,146,60,0.06)', border: '1px solid rgba(251,146,60,0.15)' }}>
-                      <svg className="w-5 h-5 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#FB923C"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                      <span className="text-gray-300 text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>Gmail accounts work best with Google login.</span>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '14px', borderRadius: '8px', background: 'rgba(251,146,60,0.06)', border: '1px solid rgba(251,146,60,0.15)' }}>
+                      <svg style={{ width: '18px', height: '18px', minWidth: '18px', marginTop: '2px' }} fill="none" viewBox="0 0 24 24" stroke="#FB923C"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      <span style={{ color: '#d1d5db', fontSize: '14px', fontFamily: 'Inter, sans-serif' }}>Gmail accounts work best with Google login.</span>
                     </div>
                     <Btn onClick={handleGoogleLogin} text="Continue with Google" icon={<GoogleIcon />} />
                   </div>
@@ -265,8 +263,7 @@ export function LoginModal({
                         onChange={(e) => handleOtpInput(i, e.target.value)}
                         onKeyDown={(e) => handleOtpKeyDown(i, e)}
                         autoFocus={i === 0} disabled={isLoading}
-                        className="w-11 h-13 text-center text-2xl text-white rounded-lg transition-all duration-200 focus:outline-none disabled:opacity-50"
-                        style={{ fontFamily: 'JetBrains Mono, monospace', background: 'rgba(15,31,56,0.6)', border: digit ? '1px solid rgba(34,211,238,0.5)' : '1px solid rgba(34,211,238,0.15)', boxShadow: digit ? '0 0 12px rgba(34,211,238,0.1)' : 'inset 0 0 10px rgba(0,0,0,0.2)' }}
+                        style={{ width: '44px', height: '52px', textAlign: 'center', fontSize: '22px', color: 'white', borderRadius: '8px', transition: 'all 0.2s', outline: 'none', opacity: isLoading ? 0.5 : 1, fontFamily: 'JetBrains Mono, monospace', background: 'rgba(15,31,56,0.6)', border: digit ? '1px solid rgba(34,211,238,0.5)' : '1px solid rgba(34,211,238,0.15)', boxShadow: digit ? '0 0 12px rgba(34,211,238,0.1)' : 'inset 0 0 10px rgba(0,0,0,0.2)' }}
                         onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(34,211,238,0.5)'; e.currentTarget.style.boxShadow = '0 0 12px rgba(34,211,238,0.12)'; }}
                         onBlur={(e) => { e.currentTarget.style.borderColor = digit ? 'rgba(34,211,238,0.5)' : 'rgba(34,211,238,0.15)'; e.currentTarget.style.boxShadow = digit ? '0 0 12px rgba(34,211,238,0.1)' : 'inset 0 0 10px rgba(0,0,0,0.2)'; }}
                         aria-label={`Digit ${i + 1} of 6`}
@@ -329,7 +326,7 @@ function Btn({ onClick, disabled, text, loading, icon }: {
       onMouseDown={(e) => { if (!disabled) e.currentTarget.style.transform = 'scale(0.97)'; }}
       onMouseUp={(e) => { if (!disabled) e.currentTarget.style.transform = 'translateY(-2px)'; }}
     >
-      {loading ? <Spinner /> : <>{icon && <span className="w-6 h-6 flex items-center justify-center shrink-0">{icon}</span>}{text && <span>{'< '}{text}{' >'}</span>}</>}
+      {loading ? <Spinner /> : <>{icon && <span style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{icon}</span>}{text && <span>{'< '}{text}{' >'}</span>}</>}
     </button>
   );
 }
@@ -342,7 +339,7 @@ function Back({ onClick }: { onClick: () => void }) {
       onMouseEnter={(e) => { e.currentTarget.style.color = '#22d3ee'; e.currentTarget.style.borderColor = 'rgba(34,211,238,0.3)'; e.currentTarget.style.background = 'rgba(34,211,238,0.06)'; }}
       onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(34,211,238,0.6)'; e.currentTarget.style.borderColor = 'rgba(34,211,238,0.12)'; e.currentTarget.style.background = 'transparent'; }}
     >
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+      <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
       Back
     </button>
   );
