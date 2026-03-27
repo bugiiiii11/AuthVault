@@ -303,7 +303,14 @@ export function SignaKitProvider({
             const res = await client.authGoogle(session.access_token, deviceId);
             await handleAuthResponse(res);
             return;
-          } catch (err) {
+          } catch (err: unknown) {
+            // Don't retry on rate limit (429) or client errors (4xx)
+            const status = (err as { status?: number }).status;
+            if (status === 429 || (status && status >= 400 && status < 500 && status !== 401)) {
+              console.error('Google OAuth callback failed:', err);
+              setState(prev => ({ ...prev, status: 'unauthenticated' }));
+              return;
+            }
             if (attempt === maxRetries - 1) {
               console.error('Google OAuth callback failed after retries:', err);
               setState(prev => ({ ...prev, status: 'unauthenticated' }));

@@ -1,8 +1,5 @@
 /**
- * LoginModal -- Auth modal following Swarm Resistance HUD design system.
- * Glass panels, corner accents with glow dots, hologram aesthetics.
- * Supports wallet connections (MetaMask, WalletConnect, Coinbase) and
- * social logins (Google, Email OTP).
+ * LoginModal -- Swarm Resistance HUD glass design.
  */
 import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { useAuth } from '../hooks/useAuth';
@@ -25,7 +22,6 @@ interface LoginModalProps {
 }
 
 const GMAIL_DOMAINS = ['gmail.com', 'googlemail.com'];
-
 function isGmailAddress(email: string): boolean {
   const domain = email.split('@')[1]?.toLowerCase();
   return GMAIL_DOMAINS.includes(domain);
@@ -45,14 +41,11 @@ export function LoginModal({
   const [view, setView] = useState<LoginView>('main');
   const [email, setEmail] = useState('');
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
-  const [emailSent, setEmailSent] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   const [gmailWarning, setGmailWarning] = useState(false);
   const [connectingWallet, setConnectingWallet] = useState<string | null>(null);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const modalRef = useRef<HTMLDivElement>(null);
 
-  // Close on escape
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -60,33 +53,23 @@ export function LoginModal({
     return () => window.removeEventListener('keydown', handler);
   }, [isOpen, onClose]);
 
-  // Prevent body scroll
   useEffect(() => {
     if (isOpen) document.body.style.overflow = 'hidden';
     else document.body.style.overflow = '';
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
-  // Success callback
   useEffect(() => {
-    if (status === 'authenticated' && user && onSuccess) {
-      onSuccess(user);
-    }
+    if (status === 'authenticated' && user && onSuccess) onSuccess(user);
   }, [status, user, onSuccess]);
 
-  // Reset on close
   useEffect(() => {
     if (!isOpen) {
-      setView('main');
-      setEmail('');
-      setOtpDigits(['', '', '', '', '', '']);
-      setEmailSent(false);
-      setGmailWarning(false);
-      setConnectingWallet(null);
+      setView('main'); setEmail(''); setOtpDigits(['', '', '', '', '', '']);
+      setGmailWarning(false); setConnectingWallet(null);
     }
   }, [isOpen]);
 
-  // Resend timer
   useEffect(() => {
     if (resendTimer <= 0) return;
     const t = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
@@ -103,26 +86,17 @@ export function LoginModal({
 
   const handleWalletConnect = useCallback(async (provider: WalletProvider) => {
     setConnectingWallet(provider);
-    try {
-      await connect(provider);
-    } finally {
-      setConnectingWallet(null);
-    }
+    try { await connect(provider); } finally { setConnectingWallet(null); }
   }, [connect]);
 
   const handleEmailSubmit = useCallback(async () => {
     if (!email) return;
-    if (isGmailAddress(email)) {
-      setGmailWarning(true);
-      return;
-    }
+    if (isGmailAddress(email)) { setGmailWarning(true); return; }
     setGmailWarning(false);
     try {
       await sendEmailCode(email);
-      setEmailSent(true);
-      setView('email-verify');
-      setResendTimer(60);
-    } catch { /* error handled by useAuth */ }
+      setView('email-verify'); setResendTimer(60);
+    } catch { /* handled by useAuth */ }
   }, [email, sendEmailCode]);
 
   const handleOtpInput = useCallback((index: number, value: string) => {
@@ -130,26 +104,19 @@ export function LoginModal({
     const newDigits = [...otpDigits];
     newDigits[index] = value;
     setOtpDigits(newDigits);
-    if (value && index < 5) {
-      inputRefs.current[index + 1]?.focus();
-    }
-    if (value && index === 5 && newDigits.every(d => d)) {
-      verifyEmailCode(email, newDigits.join(''));
-    }
+    if (value && index < 5) inputRefs.current[index + 1]?.focus();
+    if (value && index === 5 && newDigits.every(d => d)) verifyEmailCode(email, newDigits.join(''));
   }, [otpDigits, email, verifyEmailCode]);
 
   const handleOtpKeyDown = useCallback((index: number, e: React.KeyboardEvent) => {
-    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
+    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) inputRefs.current[index - 1]?.focus();
   }, [otpDigits]);
 
   const handleOtpPaste = useCallback((e: React.ClipboardEvent) => {
     e.preventDefault();
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
     if (pasted.length === 6) {
-      const digits = pasted.split('');
-      setOtpDigits(digits);
+      setOtpDigits(pasted.split(''));
       inputRefs.current[5]?.focus();
       verifyEmailCode(email, pasted);
     }
@@ -164,553 +131,234 @@ export function LoginModal({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="signakit-modal-title"
-      style={{
-        background: 'rgba(0, 0, 0, 0.8)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-      }}
+      role="dialog" aria-modal="true" aria-labelledby="sk-title"
+      style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}
     >
-      <div
-        ref={modalRef}
-        className="relative w-full max-w-[440px]"
-        style={{ animation: 'sk-modal-in 0.3s ease-out' }}
-      >
-        {/* Glass panel */}
+      <div className="relative w-full max-w-[480px]" style={{ animation: 'sk-in 0.3s ease-out' }}>
         <div
           className="relative rounded-xl overflow-hidden"
           style={{
-            background: 'linear-gradient(180deg, rgba(15, 31, 56, 0.95) 0%, rgba(15, 15, 35, 0.98) 100%)',
-            border: '1px solid rgba(34, 211, 238, 0.2)',
-            boxShadow: '0 0 40px rgba(34, 211, 238, 0.08), 0 0 80px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(34, 211, 238, 0.1)',
+            background: 'linear-gradient(180deg, rgba(15,31,56,0.95) 0%, rgba(15,15,35,0.98) 100%)',
+            border: '1px solid rgba(34,211,238,0.2)',
+            boxShadow: '0 0 60px rgba(34,211,238,0.08), 0 0 100px rgba(0,0,0,0.5), inset 0 1px 0 rgba(34,211,238,0.1)',
             backdropFilter: 'blur(20px)',
           }}
         >
-          {/* Corner accents with glow dots */}
           <HUDCorners />
 
-          {/* Top edge accent line */}
-          <div style={{
-            position: 'absolute', top: 0, left: '20%', right: '20%', height: '1px',
-            background: 'linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.4), transparent)',
-          }} />
+          {/* Top accent */}
+          <div style={{ position: 'absolute', top: 0, left: '15%', right: '15%', height: '1px', background: 'linear-gradient(90deg, transparent, rgba(34,211,238,0.4), transparent)' }} />
 
           {/* Header */}
-          <div className="relative px-6 pt-6 pb-4 text-center">
-            {/* Close button */}
+          <div className="relative px-8 pt-7 pb-5 text-center">
+            {/* Close */}
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded transition-all duration-200"
-              style={{
-                color: 'rgba(156, 163, 175, 0.6)',
-                border: '1px solid rgba(34, 211, 238, 0.1)',
-                background: 'rgba(15, 31, 56, 0.5)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = '#22d3ee';
-                e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.3)';
-                e.currentTarget.style.boxShadow = '0 0 12px rgba(34, 211, 238, 0.15)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = 'rgba(156, 163, 175, 0.6)';
-                e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.1)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
+              className="absolute top-5 right-5 w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-200"
+              style={{ color: 'rgba(156,163,175,0.6)', border: '1px solid rgba(34,211,238,0.12)', background: 'rgba(15,31,56,0.5)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#22d3ee'; e.currentTarget.style.borderColor = 'rgba(34,211,238,0.35)'; e.currentTarget.style.boxShadow = '0 0 15px rgba(34,211,238,0.15)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(156,163,175,0.6)'; e.currentTarget.style.borderColor = 'rgba(34,211,238,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
               aria-label="Close"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
 
             {logo && <div className="mb-4">{logo}</div>}
-
-            {/* Decorative line above title */}
-            <div className="flex justify-center mb-3">
-              <div style={{ width: '40px', height: '2px', background: 'linear-gradient(90deg, transparent, #22d3ee, transparent)' }} />
-            </div>
-
-            <h2
-              id="signakit-modal-title"
-              className="text-xl tracking-[0.2em] uppercase"
-              style={{
-                fontFamily: 'Orbitron, monospace',
-                color: '#22d3ee',
-                textShadow: '0 0 20px rgba(34, 211, 238, 0.3)',
-              }}
-            >
+            <div className="flex justify-center mb-3"><div style={{ width: '40px', height: '2px', background: 'linear-gradient(90deg, transparent, #22d3ee, transparent)' }} /></div>
+            <h2 id="sk-title" className="text-2xl tracking-[0.2em] uppercase" style={{ fontFamily: 'Orbitron, monospace', color: '#22d3ee', textShadow: '0 0 25px rgba(34,211,238,0.3)' }}>
               {title}
             </h2>
           </div>
 
           {/* Content */}
-          <div className="px-8 pt-5 pb-7" aria-busy={isLoading}>
-            {/* Error message */}
+          <div className="px-10 pt-2 pb-8" aria-busy={isLoading}>
+
             {displayError && (
-              <div
-                className="mb-4 p-3 rounded-lg text-sm flex items-start gap-2.5"
-                role="alert"
-                style={{
-                  background: 'rgba(239, 68, 68, 0.08)',
-                  border: '1px solid rgba(239, 68, 68, 0.25)',
-                  boxShadow: 'inset 0 0 20px rgba(239, 68, 68, 0.05)',
-                }}
-              >
-                <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#f87171">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.072 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-                <span style={{ color: '#f87171' }}>{displayError}</span>
+              <div className="mb-5 p-3.5 rounded-lg flex items-start gap-3" role="alert"
+                style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
+                <svg className="w-5 h-5 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#f87171"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.072 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
+                <span className="text-sm" style={{ color: '#f87171' }}>{displayError}</span>
               </div>
             )}
 
-            {/* ---- Main view ---- */}
+            {/* ======== MAIN ======== */}
             {view === 'main' && (
-              <div className="space-y-5">
-                {/* Wallet options */}
+              <div className="space-y-6">
                 {providers.wallets && providers.wallets.length > 0 && (
-                  <div className="space-y-2.5">
-                    <SectionLabel text="Wallet" />
-                    <div className="space-y-2">
-                      {providers.wallets?.includes('metamask') && (
-                        <CTAButton
-                          onClick={() => handleWalletConnect('metamask')}
-                          text="MetaMask"
-                          disabled={isLoading}
-                          loading={connectingWallet === 'metamask'}
-                          icon={<MetaMaskIcon />}
-                        />
-                      )}
-                      {providers.wallets?.includes('walletconnect') && (
-                        <CTAButton
-                          onClick={() => handleWalletConnect('walletconnect')}
-                          text="WalletConnect"
-                          disabled={isLoading}
-                          loading={connectingWallet === 'walletconnect'}
-                          icon={<WalletConnectIcon />}
-                        />
-                      )}
-                      {providers.wallets?.includes('coinbase') && (
-                        <CTAButton
-                          onClick={() => handleWalletConnect('coinbase')}
-                          text="Coinbase Wallet"
-                          disabled={isLoading}
-                          loading={connectingWallet === 'coinbase'}
-                          icon={<CoinbaseIcon />}
-                        />
-                      )}
-                    </div>
+                  <div className="space-y-3">
+                    <Label text="Wallet" />
+                    {providers.wallets?.includes('metamask') && (
+                      <Btn onClick={() => handleWalletConnect('metamask')} text="MetaMask" disabled={isLoading} loading={connectingWallet === 'metamask'} icon={<MetaMaskIcon />} />
+                    )}
+                    {providers.wallets?.includes('walletconnect') && (
+                      <Btn onClick={() => handleWalletConnect('walletconnect')} text="WalletConnect" disabled={isLoading} loading={connectingWallet === 'walletconnect'} icon={<WalletConnectIcon />} />
+                    )}
+                    {providers.wallets?.includes('coinbase') && (
+                      <Btn onClick={() => handleWalletConnect('coinbase')} text="Coinbase" disabled={isLoading} loading={connectingWallet === 'coinbase'} icon={<CoinbaseIcon />} />
+                    )}
                   </div>
                 )}
-
-                {/* Social options */}
                 {providers.social && providers.social.length > 0 && (
-                  <div className="space-y-2.5">
-                    <SectionLabel text="Social" />
-                    <div className="space-y-2">
-                      {providers.social?.includes('google') && (
-                        <CTAButton
-                          onClick={handleGoogleLogin}
-                          text="Google"
-                          disabled={isLoading || !supabaseClient}
-                          icon={<GoogleIcon />}
-                        />
-                      )}
-                      {providers.social?.includes('email') && (
-                        <CTAButton
-                          onClick={() => setView('email-input')}
-                          text="Email"
-                          disabled={isLoading}
-                          icon={<EmailIcon />}
-                        />
-                      )}
-                    </div>
+                  <div className="space-y-3">
+                    <Label text="Social" />
+                    {providers.social?.includes('google') && (
+                      <Btn onClick={handleGoogleLogin} text="Google" disabled={isLoading || !supabaseClient} icon={<GoogleIcon />} />
+                    )}
+                    {providers.social?.includes('email') && (
+                      <Btn onClick={() => setView('email-input')} text="Email" disabled={isLoading} icon={<EmailIcon />} />
+                    )}
                   </div>
                 )}
-
-                {/* Connecting status */}
                 {isConnecting && (
-                  <div className="flex items-center justify-center gap-2.5 py-2">
-                    <Spinner />
-                    <span className="text-sm" style={{ color: '#22d3ee', fontFamily: 'Inter, sans-serif' }}>
-                      Confirm in your wallet...
-                    </span>
+                  <div className="flex items-center justify-center gap-3 py-2">
+                    <Spinner /><span style={{ color: '#22d3ee', fontFamily: 'Inter, sans-serif', fontSize: '14px' }}>Confirm in your wallet...</span>
                   </div>
                 )}
               </div>
             )}
 
-            {/* ---- Email input view ---- */}
+            {/* ======== EMAIL INPUT ======== */}
             {view === 'email-input' && (
               <div className="space-y-5">
-                <BackButton onClick={() => { setView('main'); setGmailWarning(false); }} />
-
+                <Back onClick={() => { setView('main'); setGmailWarning(false); }} />
                 <div>
-                  <label
-                    htmlFor="signakit-email"
-                    className="block mb-2"
-                    style={{ fontFamily: 'Orbitron, monospace', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(156, 163, 175, 0.6)' }}
-                  >
+                  <label htmlFor="sk-email" style={{ fontFamily: 'Orbitron, monospace', fontSize: '11px', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(156,163,175,0.5)', display: 'block', marginBottom: '8px' }}>
                     Email address
                   </label>
                   <input
-                    id="signakit-email"
-                    type="email"
-                    value={email}
+                    id="sk-email" type="email" value={email}
                     onChange={(e) => { setEmail(e.target.value); setGmailWarning(false); }}
                     onKeyDown={(e) => { if (e.key === 'Enter') handleEmailSubmit(); }}
-                    placeholder="you@example.com"
-                    autoComplete="email"
-                    autoFocus
-                    disabled={isLoading}
-                    className="w-full rounded-lg px-4 py-3 text-white placeholder-gray-600 min-h-[48px] transition-all duration-300 focus:outline-none disabled:opacity-50"
-                    style={{
-                      fontFamily: 'Inter, sans-serif',
-                      background: 'rgba(15, 31, 56, 0.6)',
-                      border: gmailWarning ? '1px solid rgba(251, 146, 60, 0.5)' : '1px solid rgba(34, 211, 238, 0.15)',
-                      fontSize: '16px',
-                      boxShadow: 'inset 0 0 20px rgba(0, 0, 0, 0.2)',
-                    }}
-                    onFocus={(e) => {
-                      if (!gmailWarning) {
-                        e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.4)';
-                        e.currentTarget.style.boxShadow = 'inset 0 0 20px rgba(0, 0, 0, 0.2), 0 0 12px rgba(34, 211, 238, 0.08)';
-                      }
-                    }}
-                    onBlur={(e) => {
-                      if (!gmailWarning) {
-                        e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.15)';
-                        e.currentTarget.style.boxShadow = 'inset 0 0 20px rgba(0, 0, 0, 0.2)';
-                      }
-                    }}
+                    placeholder="you@example.com" autoComplete="email" autoFocus disabled={isLoading}
+                    className="w-full rounded-lg px-4 py-3.5 text-white placeholder-gray-600 transition-all duration-300 focus:outline-none disabled:opacity-50"
+                    style={{ fontFamily: 'Inter, sans-serif', background: 'rgba(15,31,56,0.6)', border: gmailWarning ? '1px solid rgba(251,146,60,0.5)' : '1px solid rgba(34,211,238,0.15)', fontSize: '16px', boxShadow: 'inset 0 0 20px rgba(0,0,0,0.2)' }}
+                    onFocus={(e) => { if (!gmailWarning) { e.currentTarget.style.borderColor = 'rgba(34,211,238,0.4)'; e.currentTarget.style.boxShadow = 'inset 0 0 20px rgba(0,0,0,0.2), 0 0 12px rgba(34,211,238,0.08)'; }}}
+                    onBlur={(e) => { if (!gmailWarning) { e.currentTarget.style.borderColor = 'rgba(34,211,238,0.15)'; e.currentTarget.style.boxShadow = 'inset 0 0 20px rgba(0,0,0,0.2)'; }}}
                   />
                 </div>
-
-                {/* Gmail warning */}
                 {gmailWarning && (
-                  <div className="space-y-3">
-                    <div
-                      className="flex items-start gap-2.5 p-3 rounded-lg text-sm"
-                      style={{
-                        background: 'rgba(251, 146, 60, 0.06)',
-                        border: '1px solid rgba(251, 146, 60, 0.15)',
-                      }}
-                    >
-                      <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#FB923C">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span className="text-gray-300" style={{ fontFamily: 'Inter, sans-serif' }}>
-                        Gmail accounts work best with Google login.
-                      </span>
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3 p-3.5 rounded-lg" style={{ background: 'rgba(251,146,60,0.06)', border: '1px solid rgba(251,146,60,0.15)' }}>
+                      <svg className="w-5 h-5 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#FB923C"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      <span className="text-gray-300 text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>Gmail accounts work best with Google login.</span>
                     </div>
-                    <CTAButton onClick={handleGoogleLogin} text="Continue with Google" variant="accent" icon={<GoogleIcon />} />
+                    <Btn onClick={handleGoogleLogin} text="Continue with Google" icon={<GoogleIcon />} />
                   </div>
                 )}
-
-                {!gmailWarning && (
-                  <CTAButton
-                    onClick={handleEmailSubmit}
-                    disabled={isLoading || !email}
-                    text={isLoading ? undefined : 'Send Code'}
-                    loading={isLoading}
-                  />
-                )}
+                {!gmailWarning && <Btn onClick={handleEmailSubmit} disabled={isLoading || !email} text={isLoading ? undefined : 'Send Code'} loading={isLoading} />}
               </div>
             )}
 
-            {/* ---- Email verify view ---- */}
+            {/* ======== OTP VERIFY ======== */}
             {view === 'email-verify' && (
-              <div className="space-y-5">
-                <BackButton onClick={() => { setView('email-input'); setOtpDigits(['', '', '', '', '', '']); }} />
-
+              <div className="space-y-6">
+                <Back onClick={() => { setView('email-input'); setOtpDigits(['', '', '', '', '', '']); }} />
                 <div className="text-center">
-                  <p className="text-gray-400 text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>
-                    Enter the 6-digit code sent to
-                  </p>
-                  <p className="mt-1" style={{ color: '#22d3ee', fontFamily: 'JetBrains Mono, monospace', fontSize: '14px' }}>
-                    {email}
-                  </p>
+                  <p className="text-gray-400" style={{ fontFamily: 'Inter, sans-serif', fontSize: '15px' }}>Enter the 6-digit code sent to</p>
+                  <p className="mt-1.5" style={{ color: '#22d3ee', fontFamily: 'JetBrains Mono, monospace', fontSize: '15px' }}>{email}</p>
                 </div>
-
-                {/* OTP inputs -- narrower container */}
-                <div className="max-w-[280px] mx-auto">
-                  <div className="flex gap-2 justify-center" onPaste={handleOtpPaste}>
+                <div className="max-w-[300px] mx-auto">
+                  <div className="flex gap-2.5 justify-center" onPaste={handleOtpPaste}>
                     {otpDigits.map((digit, i) => (
-                      <input
-                        key={i}
-                        ref={(el) => { inputRefs.current[i] = el; }}
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={1}
-                        value={digit}
+                      <input key={i} ref={(el) => { inputRefs.current[i] = el; }}
+                        type="text" inputMode="numeric" maxLength={1} value={digit}
                         onChange={(e) => handleOtpInput(i, e.target.value)}
                         onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                        autoFocus={i === 0}
-                        disabled={isLoading}
-                        className="w-10 h-12 text-center text-xl text-white rounded-lg transition-all duration-200 focus:outline-none disabled:opacity-50"
-                        style={{
-                          fontFamily: 'JetBrains Mono, monospace',
-                          background: 'rgba(15, 31, 56, 0.6)',
-                          border: digit ? '1px solid rgba(34, 211, 238, 0.5)' : '1px solid rgba(34, 211, 238, 0.15)',
-                          boxShadow: digit ? '0 0 12px rgba(34, 211, 238, 0.1), inset 0 0 10px rgba(34, 211, 238, 0.05)' : 'inset 0 0 10px rgba(0, 0, 0, 0.2)',
-                        }}
-                        onFocus={(e) => {
-                          e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.5)';
-                          e.currentTarget.style.boxShadow = '0 0 12px rgba(34, 211, 238, 0.12), inset 0 0 10px rgba(34, 211, 238, 0.05)';
-                        }}
-                        onBlur={(e) => {
-                          e.currentTarget.style.borderColor = digit ? 'rgba(34, 211, 238, 0.5)' : 'rgba(34, 211, 238, 0.15)';
-                          e.currentTarget.style.boxShadow = digit ? '0 0 12px rgba(34, 211, 238, 0.1), inset 0 0 10px rgba(34, 211, 238, 0.05)' : 'inset 0 0 10px rgba(0, 0, 0, 0.2)';
-                        }}
+                        autoFocus={i === 0} disabled={isLoading}
+                        className="w-11 h-13 text-center text-2xl text-white rounded-lg transition-all duration-200 focus:outline-none disabled:opacity-50"
+                        style={{ fontFamily: 'JetBrains Mono, monospace', background: 'rgba(15,31,56,0.6)', border: digit ? '1px solid rgba(34,211,238,0.5)' : '1px solid rgba(34,211,238,0.15)', boxShadow: digit ? '0 0 12px rgba(34,211,238,0.1)' : 'inset 0 0 10px rgba(0,0,0,0.2)' }}
+                        onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(34,211,238,0.5)'; e.currentTarget.style.boxShadow = '0 0 12px rgba(34,211,238,0.12)'; }}
+                        onBlur={(e) => { e.currentTarget.style.borderColor = digit ? 'rgba(34,211,238,0.5)' : 'rgba(34,211,238,0.15)'; e.currentTarget.style.boxShadow = digit ? '0 0 12px rgba(34,211,238,0.1)' : 'inset 0 0 10px rgba(0,0,0,0.2)'; }}
                         aria-label={`Digit ${i + 1} of 6`}
                       />
                     ))}
                   </div>
                 </div>
-
-                {/* Resend */}
-                <div>
-                  {resendTimer > 0 ? (
-                    <CTAButton
-                      onClick={() => {}}
-                      text={`Resend in ${resendTimer}s`}
-                      disabled
-                    />
-                  ) : (
-                    <CTAButton
-                      onClick={() => { handleEmailSubmit(); setResendTimer(60); }}
-                      text="Resend Code"
-                    />
-                  )}
-                </div>
-
+                {resendTimer > 0
+                  ? <Btn onClick={() => {}} text={`Resend in ${resendTimer}s`} disabled />
+                  : <Btn onClick={() => { handleEmailSubmit(); setResendTimer(60); }} text="Resend Code" />
+                }
                 {isLoading && (
-                  <div className="flex items-center justify-center gap-2.5">
-                    <Spinner />
-                    <span className="text-sm" style={{ color: '#22d3ee', fontFamily: 'Inter, sans-serif' }}>Verifying...</span>
+                  <div className="flex items-center justify-center gap-3">
+                    <Spinner /><span style={{ color: '#22d3ee', fontFamily: 'Inter, sans-serif', fontSize: '14px' }}>Verifying...</span>
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          {/* Bottom edge accent */}
-          <div style={{
-            position: 'absolute', bottom: 0, left: '20%', right: '20%', height: '1px',
-            background: 'linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.2), transparent)',
-          }} />
+          {/* Bottom accent */}
+          <div style={{ position: 'absolute', bottom: 0, left: '15%', right: '15%', height: '1px', background: 'linear-gradient(90deg, transparent, rgba(34,211,238,0.2), transparent)' }} />
         </div>
       </div>
 
       <style>{`
-        @keyframes sk-modal-in {
-          from { opacity: 0; transform: scale(0.92) translateY(-12px); }
-          to { opacity: 1; transform: scale(1) translateY(0); }
-        }
-        @keyframes sk-glow-pulse {
-          0%, 100% { opacity: 0.4; }
-          50% { opacity: 1; }
-        }
+        @keyframes sk-in { from { opacity: 0; transform: scale(0.92) translateY(-12px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes sk-glow { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
       `}</style>
     </div>
   );
 }
 
-
-// ============================================================
-// Sub-components
 // ============================================================
 
 function HUDCorners() {
-  const Corner = ({ top, right, bottom, left }: { top?: boolean; right?: boolean; bottom?: boolean; left?: boolean }) => {
-    const y = top ? '0' : undefined;
-    const x = left ? '0' : undefined;
-    const yB = bottom ? '0' : undefined;
-    const xR = right ? '0' : undefined;
-
-    return (
-      <span style={{
-        position: 'absolute',
-        top: y, bottom: yB, left: x, right: xR,
-        width: '16px', height: '16px', zIndex: 10, pointerEvents: 'none',
-      }}>
-        {/* Horizontal line */}
-        <span style={{
-          position: 'absolute',
-          [top ? 'top' : 'bottom']: 0,
-          [left ? 'left' : 'right']: 0,
-          width: '16px', height: '1px',
-          background: 'rgba(34, 211, 238, 0.5)',
-        }} />
-        {/* Vertical line */}
-        <span style={{
-          position: 'absolute',
-          [top ? 'top' : 'bottom']: 0,
-          [left ? 'left' : 'right']: 0,
-          width: '1px', height: '16px',
-          background: 'rgba(34, 211, 238, 0.5)',
-        }} />
-        {/* Glow dot at corner intersection */}
-        <span style={{
-          position: 'absolute',
-          [top ? 'top' : 'bottom']: '-1px',
-          [left ? 'left' : 'right']: '-1px',
-          width: '3px', height: '3px',
-          borderRadius: '50%',
-          background: '#22d3ee',
-          boxShadow: '0 0 6px rgba(34, 211, 238, 0.8)',
-          animation: 'sk-glow-pulse 3s ease-in-out infinite',
-        }} />
-      </span>
-    );
-  };
-
-  return (
-    <>
-      <Corner top left />
-      <Corner top right />
-      <Corner bottom left />
-      <Corner bottom right />
-    </>
+  const C = ({ t, r, b, l }: { t?: boolean; r?: boolean; b?: boolean; l?: boolean }) => (
+    <span style={{ position: 'absolute', top: t ? '0' : undefined, bottom: b ? '0' : undefined, left: l ? '0' : undefined, right: r ? '0' : undefined, width: '18px', height: '18px', zIndex: 10, pointerEvents: 'none' }}>
+      <span style={{ position: 'absolute', [t ? 'top' : 'bottom']: 0, [l ? 'left' : 'right']: 0, width: '18px', height: '1px', background: 'rgba(34,211,238,0.5)' }} />
+      <span style={{ position: 'absolute', [t ? 'top' : 'bottom']: 0, [l ? 'left' : 'right']: 0, width: '1px', height: '18px', background: 'rgba(34,211,238,0.5)' }} />
+      <span style={{ position: 'absolute', [t ? 'top' : 'bottom']: '-1px', [l ? 'left' : 'right']: '-1px', width: '3px', height: '3px', borderRadius: '50%', background: '#22d3ee', boxShadow: '0 0 6px rgba(34,211,238,0.8)', animation: 'sk-glow 3s ease-in-out infinite' }} />
+    </span>
   );
+  return <><C t l /><C t r /><C b l /><C b r /></>;
 }
 
-function SectionLabel({ text, center }: { text: string; center?: boolean }) {
-  return (
-    <p
-      className="px-0.5"
-      style={{
-        fontFamily: 'Orbitron, monospace',
-        fontSize: '11px',
-        letterSpacing: '0.12em',
-        textTransform: 'uppercase',
-        color: 'rgba(156, 163, 175, 0.45)',
-        textAlign: center ? 'center' : 'left',
-      }}
-    >
-      {text}
-    </p>
-  );
+function Label({ text }: { text: string }) {
+  return <p style={{ fontFamily: 'Orbitron, monospace', fontSize: '11px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(156,163,175,0.45)', paddingLeft: '2px' }}>{text}</p>;
 }
 
-
-function CTAButton({ onClick, disabled, text, loading, variant = 'primary', icon }: {
-  onClick: () => void;
-  disabled?: boolean;
-  text?: string;
-  loading?: boolean;
-  variant?: 'primary' | 'accent';
-  icon?: ReactNode;
+function Btn({ onClick, disabled, text, loading, icon }: {
+  onClick: () => void; disabled?: boolean; text?: string; loading?: boolean; icon?: ReactNode;
 }) {
-  const isPrimary = variant === 'primary';
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className="w-full py-3 rounded-lg min-h-[48px] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-      style={{
-        fontFamily: 'Orbitron, monospace',
-        fontSize: '11px',
-        letterSpacing: '0.12em',
-        textTransform: 'uppercase',
-        fontWeight: 700,
-        background: isPrimary ? 'rgba(34, 211, 238, 0.06)' : 'linear-gradient(135deg, #FF8C00, #FFB84D)',
-        color: isPrimary ? '#22d3ee' : '#1a1a2e',
-        border: isPrimary ? '1px solid rgba(34, 211, 238, 0.25)' : 'none',
-        boxShadow: isPrimary ? '0 0 15px rgba(34, 211, 238, 0.06)' : '0 0 20px rgba(255, 140, 0, 0.15)',
-      }}
-      onMouseEnter={(e) => {
-        if (!disabled) {
-          e.currentTarget.style.transform = 'translateY(-2px)';
-          if (isPrimary) {
-            e.currentTarget.style.background = 'rgba(34, 211, 238, 0.12)';
-            e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.45)';
-            e.currentTarget.style.boxShadow = '0 0 25px rgba(34, 211, 238, 0.12)';
-          } else {
-            e.currentTarget.style.boxShadow = '0 0 30px rgba(255, 140, 0, 0.3)';
-          }
-        }
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'translateY(0)';
-        if (isPrimary) {
-          e.currentTarget.style.background = 'rgba(34, 211, 238, 0.06)';
-          e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.25)';
-          e.currentTarget.style.boxShadow = '0 0 15px rgba(34, 211, 238, 0.06)';
-        } else {
-          e.currentTarget.style.boxShadow = '0 0 20px rgba(255, 140, 0, 0.15)';
-        }
-      }}
-      onMouseDown={(e) => {
-        if (!disabled) e.currentTarget.style.transform = 'scale(0.97)';
-      }}
-      onMouseUp={(e) => {
-        if (!disabled) e.currentTarget.style.transform = 'translateY(-2px)';
-      }}
+    <button onClick={onClick} disabled={disabled}
+      className="w-full py-3.5 rounded-lg min-h-[52px] transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+      style={{ fontFamily: 'Orbitron, monospace', fontSize: '13px', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700, background: 'rgba(34,211,238,0.06)', color: '#22d3ee', border: '1px solid rgba(34,211,238,0.25)', boxShadow: '0 0 15px rgba(34,211,238,0.06)' }}
+      onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.background = 'rgba(34,211,238,0.12)'; e.currentTarget.style.borderColor = 'rgba(34,211,238,0.45)'; e.currentTarget.style.boxShadow = '0 0 25px rgba(34,211,238,0.12)'; }}}
+      onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.background = 'rgba(34,211,238,0.06)'; e.currentTarget.style.borderColor = 'rgba(34,211,238,0.25)'; e.currentTarget.style.boxShadow = '0 0 15px rgba(34,211,238,0.06)'; }}
+      onMouseDown={(e) => { if (!disabled) e.currentTarget.style.transform = 'scale(0.97)'; }}
+      onMouseUp={(e) => { if (!disabled) e.currentTarget.style.transform = 'translateY(-2px)'; }}
     >
-      {loading ? (
-        <Spinner color={isPrimary ? '#22d3ee' : '#1a1a2e'} />
-      ) : (
-        <>
-          {icon && <span className="w-5 h-5 flex items-center justify-center shrink-0">{icon}</span>}
-          {text && <span>{'< '}{text}{' >'}</span>}
-        </>
-      )}
+      {loading ? <Spinner /> : <>{icon && <span className="w-6 h-6 flex items-center justify-center shrink-0">{icon}</span>}{text && <span>{'< '}{text}{' >'}</span>}</>}
     </button>
   );
 }
 
-function BackButton({ onClick }: { onClick: () => void }) {
+function Back({ onClick }: { onClick: () => void }) {
   return (
-    <button
-      onClick={onClick}
-      className="flex items-center gap-2 px-3 py-1.5 rounded transition-all duration-200"
-      style={{
-        color: 'rgba(34, 211, 238, 0.6)',
-        fontFamily: 'Orbitron, monospace',
-        fontSize: '10px',
-        letterSpacing: '0.1em',
-        textTransform: 'uppercase',
-        border: '1px solid rgba(34, 211, 238, 0.1)',
-        background: 'transparent',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.color = '#22d3ee';
-        e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.3)';
-        e.currentTarget.style.background = 'rgba(34, 211, 238, 0.06)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.color = 'rgba(34, 211, 238, 0.6)';
-        e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.1)';
-        e.currentTarget.style.background = 'transparent';
-      }}
+    <button onClick={onClick}
+      className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200"
+      style={{ color: 'rgba(34,211,238,0.6)', fontFamily: 'Orbitron, monospace', fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', border: '1px solid rgba(34,211,238,0.12)', background: 'transparent' }}
+      onMouseEnter={(e) => { e.currentTarget.style.color = '#22d3ee'; e.currentTarget.style.borderColor = 'rgba(34,211,238,0.3)'; e.currentTarget.style.background = 'rgba(34,211,238,0.06)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(34,211,238,0.6)'; e.currentTarget.style.borderColor = 'rgba(34,211,238,0.12)'; e.currentTarget.style.background = 'transparent'; }}
     >
-      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
-      </svg>
+      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
       Back
     </button>
   );
 }
 
-function Spinner({ color = 'rgba(34, 211, 238, 0.9)', size = 18 }: { color?: string; size?: number }) {
+function Spinner({ color = 'rgba(34,211,238,0.9)', size = 20 }: { color?: string; size?: number }) {
   return (
-    <svg
-      className="animate-spin"
-      style={{ width: size, height: size, display: 'inline-block' }}
-      fill="none"
-      viewBox="0 0 24 24"
-    >
+    <svg className="animate-spin" style={{ width: size, height: size, display: 'inline-block' }} fill="none" viewBox="0 0 24 24">
       <circle style={{ opacity: 0.2 }} cx="12" cy="12" r="10" stroke={color} strokeWidth="3" />
       <path style={{ opacity: 0.85 }} fill={color} d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
     </svg>
   );
 }
 
-
 // ============================================================
-// Icons (inline SVG)
+// Icons
 // ============================================================
 
 function GoogleIcon() {
@@ -726,7 +374,7 @@ function GoogleIcon() {
 
 function EmailIcon() {
   return (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="rgba(34, 211, 238, 0.7)">
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="rgba(34,211,238,0.7)">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
     </svg>
   );
@@ -734,7 +382,7 @@ function EmailIcon() {
 
 function MetaMaskIcon() {
   return (
-    <svg className="w-7 h-7" viewBox="0 0 35 33">
+    <svg className="w-6 h-6" viewBox="0 0 35 33">
       <path fill="#E2761B" stroke="#E2761B" strokeLinecap="round" strokeLinejoin="round" d="M32.96 1l-13.14 9.72 2.45-5.73L32.96 1z"/>
       <path fill="#E4761B" stroke="#E4761B" strokeLinecap="round" strokeLinejoin="round" d="M2.66 1l13.02 9.81L13.35 4.99 2.66 1zM28.23 23.53l-3.5 5.34 7.49 2.06 2.14-7.28-6.13-.12zM.92 23.65l2.13 7.28 7.47-2.06-3.48-5.34-6.12.12z"/>
       <path fill="#E4761B" stroke="#E4761B" strokeLinecap="round" strokeLinejoin="round" d="M10.15 14.51l-2.09 3.17 7.44.34-.26-8-5.09 4.49zM25.46 14.51l-5.17-4.58-.17 8.09 7.44-.34-2.1-3.17zM10.52 28.87l4.49-2.16-3.88-3.03-.61 5.19zM20.61 26.71l4.47 2.16-.59-5.19-3.88 3.03z"/>
@@ -753,7 +401,7 @@ function MetaMaskIcon() {
 
 function WalletConnectIcon() {
   return (
-    <svg className="w-7 h-7" viewBox="0 0 24 24">
+    <svg className="w-6 h-6" viewBox="0 0 24 24">
       <path fill="#3B99FC" d="M6.09 8.55c3.26-3.19 8.56-3.19 11.82 0l.39.38a.4.4 0 010 .58l-1.34 1.31a.21.21 0 01-.3 0l-.54-.53a5.94 5.94 0 00-8.24 0l-.58.56a.21.21 0 01-.3 0L5.67 9.54a.4.4 0 010-.58l.42-.41zm14.6 2.72l1.2 1.17a.4.4 0 010 .58l-5.38 5.27a.42.42 0 01-.59 0l-3.82-3.74a.1.1 0 00-.15 0l-3.82 3.74a.42.42 0 01-.59 0L2.16 13a.4.4 0 010-.58l1.2-1.17a.42.42 0 01.59 0l3.82 3.74a.1.1 0 00.15 0l3.82-3.74a.42.42 0 01.59 0l3.82 3.74a.1.1 0 00.15 0l3.82-3.74a.42.42 0 01.59 0z"/>
     </svg>
   );
@@ -761,7 +409,7 @@ function WalletConnectIcon() {
 
 function CoinbaseIcon() {
   return (
-    <svg className="w-7 h-7" viewBox="0 0 24 24">
+    <svg className="w-6 h-6" viewBox="0 0 24 24">
       <circle fill="#0052FF" cx="12" cy="12" r="10"/>
       <path fill="white" d="M12 6a6 6 0 100 12 6 6 0 000-12zm-1.5 3.5h3a.5.5 0 01.5.5v4a.5.5 0 01-.5.5h-3a.5.5 0 01-.5-.5v-4a.5.5 0 01.5-.5z"/>
     </svg>
