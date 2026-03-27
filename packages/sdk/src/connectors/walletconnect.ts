@@ -40,13 +40,14 @@ export function createWalletConnectConnector(options: WalletConnectOptions): Wal
     },
 
     async connect(): Promise<ConnectedWallet> {
-      const wc = await getProvider();
+      let wc = await getProvider();
 
       // Clear any stale session so enable() always creates a fresh pairing.
-      // Without this, enable() reuses a dead session from localStorage
-      // and hangs forever.
+      // After disconnect, recreate the provider since it can be in a broken state.
       if (wc.session) {
         try { await wc.disconnect(); } catch { /* ignore */ }
+        provider = null;
+        wc = await getProvider();
       }
 
       // Wrap enable() with a timeout so it can't hang forever

@@ -134,7 +134,7 @@ export function LoginModal({
       role="dialog" aria-modal="true" aria-labelledby="sk-title"
       style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}
     >
-      <div className="relative w-full max-w-[480px]" style={{ animation: 'sk-in 0.3s ease-out' }}>
+      <div className="relative w-full max-w-[500px]" style={{ animation: 'sk-in 0.3s ease-out' }}>
         <div
           className="relative rounded-xl overflow-hidden"
           style={{
@@ -170,7 +170,7 @@ export function LoginModal({
           </div>
 
           {/* Content */}
-          <div className="px-10 pt-2 pb-10" aria-busy={isLoading}>
+          <div className="px-10 pt-2 pb-12" aria-busy={isLoading}>
 
             {displayError && (
               <div role="alert" style={{ marginBottom: '20px', padding: '14px', borderRadius: '8px', display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
@@ -319,7 +319,7 @@ function Btn({ onClick, disabled, text, loading, icon }: {
 }) {
   return (
     <button onClick={onClick} disabled={disabled}
-      className="w-full py-3.5 rounded-lg min-h-[52px] transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+      className="w-full py-3.5 rounded-lg min-h-[52px] transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-4"
       style={{ fontFamily: 'Orbitron, monospace', fontSize: '13px', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700, background: 'rgba(34,211,238,0.06)', color: '#22d3ee', border: '1px solid rgba(34,211,238,0.25)', boxShadow: '0 0 15px rgba(34,211,238,0.06)' }}
       onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.background = 'rgba(34,211,238,0.12)'; e.currentTarget.style.borderColor = 'rgba(34,211,238,0.45)'; e.currentTarget.style.boxShadow = '0 0 25px rgba(34,211,238,0.12)'; }}}
       onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.background = 'rgba(34,211,238,0.06)'; e.currentTarget.style.borderColor = 'rgba(34,211,238,0.25)'; e.currentTarget.style.boxShadow = '0 0 15px rgba(34,211,238,0.06)'; }}
