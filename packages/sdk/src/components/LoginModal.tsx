@@ -175,7 +175,7 @@ export function LoginModal({
     >
       <div
         ref={modalRef}
-        className="relative w-full max-w-[420px]"
+        className="relative w-full max-w-[440px]"
         style={{ animation: 'sk-modal-in 0.3s ease-out' }}
       >
         {/* Glass panel */}
@@ -234,7 +234,7 @@ export function LoginModal({
 
             <h2
               id="signakit-modal-title"
-              className="text-lg tracking-[0.2em] uppercase"
+              className="text-xl tracking-[0.2em] uppercase"
               style={{
                 fontFamily: 'Orbitron, monospace',
                 color: '#22d3ee',
@@ -246,7 +246,7 @@ export function LoginModal({
           </div>
 
           {/* Content */}
-          <div className="px-6 pt-5 pb-6" aria-busy={isLoading}>
+          <div className="px-8 pt-5 pb-7" aria-busy={isLoading}>
             {/* Error message */}
             {displayError && (
               <div
@@ -343,14 +343,14 @@ export function LoginModal({
 
             {/* ---- Email input view ---- */}
             {view === 'email-input' && (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <BackButton onClick={() => { setView('main'); setGmailWarning(false); }} />
 
                 <div>
                   <label
                     htmlFor="signakit-email"
                     className="block mb-2"
-                    style={{ fontFamily: 'Orbitron, monospace', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(156, 163, 175, 0.7)' }}
+                    style={{ fontFamily: 'Orbitron, monospace', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(156, 163, 175, 0.6)' }}
                   >
                     Email address
                   </label>
@@ -364,7 +364,7 @@ export function LoginModal({
                     autoComplete="email"
                     autoFocus
                     disabled={isLoading}
-                    className="w-full rounded-lg px-4 py-3 text-white placeholder-gray-600 min-h-[44px] transition-all duration-300 focus:outline-none disabled:opacity-50"
+                    className="w-full rounded-lg px-4 py-3 text-white placeholder-gray-600 min-h-[48px] transition-all duration-300 focus:outline-none disabled:opacity-50"
                     style={{
                       fontFamily: 'Inter, sans-serif',
                       background: 'rgba(15, 31, 56, 0.6)',
@@ -404,7 +404,7 @@ export function LoginModal({
                         Gmail accounts work best with Google login.
                       </span>
                     </div>
-                    <CTAButton onClick={handleGoogleLogin} text="Continue with Google" variant="accent" />
+                    <CTAButton onClick={handleGoogleLogin} text="Continue with Google" variant="accent" icon={<GoogleIcon />} />
                   </div>
                 )}
 
@@ -425,63 +425,63 @@ export function LoginModal({
                 <BackButton onClick={() => { setView('email-input'); setOtpDigits(['', '', '', '', '', '']); }} />
 
                 <div className="text-center">
-                  <SectionLabel text="Verification Code" center />
-                  <p className="text-gray-400 text-sm mt-2" style={{ fontFamily: 'Inter, sans-serif' }}>
-                    Enter the 6-digit code sent to{' '}
-                    <span style={{ color: '#22d3ee', fontFamily: 'JetBrains Mono, monospace' }}>{email}</span>
+                  <p className="text-gray-400 text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    Enter the 6-digit code sent to
+                  </p>
+                  <p className="mt-1" style={{ color: '#22d3ee', fontFamily: 'JetBrains Mono, monospace', fontSize: '14px' }}>
+                    {email}
                   </p>
                 </div>
 
-                {/* OTP inputs */}
-                <div className="flex gap-2.5 justify-center" onPaste={handleOtpPaste}>
-                  {otpDigits.map((digit, i) => (
-                    <input
-                      key={i}
-                      ref={(el) => { inputRefs.current[i] = el; }}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={1}
-                      value={digit}
-                      onChange={(e) => handleOtpInput(i, e.target.value)}
-                      onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                      autoFocus={i === 0}
-                      disabled={isLoading}
-                      className="w-11 h-12 text-center text-xl text-white rounded-lg transition-all duration-200 focus:outline-none disabled:opacity-50"
-                      style={{
-                        fontFamily: 'JetBrains Mono, monospace',
-                        background: 'rgba(15, 31, 56, 0.6)',
-                        border: digit ? '1px solid rgba(34, 211, 238, 0.5)' : '1px solid rgba(34, 211, 238, 0.15)',
-                        boxShadow: digit ? '0 0 12px rgba(34, 211, 238, 0.1), inset 0 0 10px rgba(34, 211, 238, 0.05)' : 'inset 0 0 10px rgba(0, 0, 0, 0.2)',
-                      }}
-                      onFocus={(e) => {
-                        e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.5)';
-                        e.currentTarget.style.boxShadow = '0 0 12px rgba(34, 211, 238, 0.12), inset 0 0 10px rgba(34, 211, 238, 0.05)';
-                      }}
-                      onBlur={(e) => {
-                        e.currentTarget.style.borderColor = digit ? 'rgba(34, 211, 238, 0.5)' : 'rgba(34, 211, 238, 0.15)';
-                        e.currentTarget.style.boxShadow = digit ? '0 0 12px rgba(34, 211, 238, 0.1), inset 0 0 10px rgba(34, 211, 238, 0.05)' : 'inset 0 0 10px rgba(0, 0, 0, 0.2)';
-                      }}
-                      aria-label={`Digit ${i + 1} of 6`}
-                    />
-                  ))}
+                {/* OTP inputs -- narrower container */}
+                <div className="max-w-[280px] mx-auto">
+                  <div className="flex gap-2 justify-center" onPaste={handleOtpPaste}>
+                    {otpDigits.map((digit, i) => (
+                      <input
+                        key={i}
+                        ref={(el) => { inputRefs.current[i] = el; }}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={1}
+                        value={digit}
+                        onChange={(e) => handleOtpInput(i, e.target.value)}
+                        onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                        autoFocus={i === 0}
+                        disabled={isLoading}
+                        className="w-10 h-12 text-center text-xl text-white rounded-lg transition-all duration-200 focus:outline-none disabled:opacity-50"
+                        style={{
+                          fontFamily: 'JetBrains Mono, monospace',
+                          background: 'rgba(15, 31, 56, 0.6)',
+                          border: digit ? '1px solid rgba(34, 211, 238, 0.5)' : '1px solid rgba(34, 211, 238, 0.15)',
+                          boxShadow: digit ? '0 0 12px rgba(34, 211, 238, 0.1), inset 0 0 10px rgba(34, 211, 238, 0.05)' : 'inset 0 0 10px rgba(0, 0, 0, 0.2)',
+                        }}
+                        onFocus={(e) => {
+                          e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.5)';
+                          e.currentTarget.style.boxShadow = '0 0 12px rgba(34, 211, 238, 0.12), inset 0 0 10px rgba(34, 211, 238, 0.05)';
+                        }}
+                        onBlur={(e) => {
+                          e.currentTarget.style.borderColor = digit ? 'rgba(34, 211, 238, 0.5)' : 'rgba(34, 211, 238, 0.15)';
+                          e.currentTarget.style.boxShadow = digit ? '0 0 12px rgba(34, 211, 238, 0.1), inset 0 0 10px rgba(34, 211, 238, 0.05)' : 'inset 0 0 10px rgba(0, 0, 0, 0.2)';
+                        }}
+                        aria-label={`Digit ${i + 1} of 6`}
+                      />
+                    ))}
+                  </div>
                 </div>
 
                 {/* Resend */}
-                <div className="text-center">
+                <div>
                   {resendTimer > 0 ? (
-                    <p className="text-gray-500 text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>
-                      Resend in <span style={{ fontFamily: 'JetBrains Mono, monospace', color: '#22d3ee' }}>{resendTimer}s</span>
-                    </p>
+                    <CTAButton
+                      onClick={() => {}}
+                      text={`Resend in ${resendTimer}s`}
+                      disabled
+                    />
                   ) : (
-                    <button
+                    <CTAButton
                       onClick={() => { handleEmailSubmit(); setResendTimer(60); }}
-                      className="text-sm transition-colors duration-200"
-                      style={{ color: '#22d3ee', fontFamily: 'Inter, sans-serif' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.color = '#67e8f9'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.color = '#22d3ee'; }}
-                    >
-                      Resend code
-                    </button>
+                      text="Resend Code"
+                    />
                   )}
                 </div>
 
@@ -579,13 +579,13 @@ function HUDCorners() {
 function SectionLabel({ text, center }: { text: string; center?: boolean }) {
   return (
     <p
-      className="px-0.5 mb-1"
+      className="px-0.5"
       style={{
         fontFamily: 'Orbitron, monospace',
-        fontSize: '10px',
-        letterSpacing: '0.15em',
+        fontSize: '11px',
+        letterSpacing: '0.12em',
         textTransform: 'uppercase',
-        color: 'rgba(156, 163, 175, 0.5)',
+        color: 'rgba(156, 163, 175, 0.45)',
         textAlign: center ? 'center' : 'left',
       }}
     >
@@ -665,13 +665,29 @@ function BackButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-1.5 text-sm transition-colors duration-200"
-      style={{ color: 'rgba(34, 211, 238, 0.7)', fontFamily: 'Inter, sans-serif' }}
-      onMouseEnter={(e) => { e.currentTarget.style.color = '#22d3ee'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(34, 211, 238, 0.7)'; }}
+      className="flex items-center gap-2 px-3 py-1.5 rounded transition-all duration-200"
+      style={{
+        color: 'rgba(34, 211, 238, 0.6)',
+        fontFamily: 'Orbitron, monospace',
+        fontSize: '10px',
+        letterSpacing: '0.1em',
+        textTransform: 'uppercase',
+        border: '1px solid rgba(34, 211, 238, 0.1)',
+        background: 'transparent',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.color = '#22d3ee';
+        e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.3)';
+        e.currentTarget.style.background = 'rgba(34, 211, 238, 0.06)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.color = 'rgba(34, 211, 238, 0.6)';
+        e.currentTarget.style.borderColor = 'rgba(34, 211, 238, 0.1)';
+        e.currentTarget.style.background = 'transparent';
+      }}
     >
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
       </svg>
       Back
     </button>
