@@ -155,8 +155,7 @@ export default function App() {
           wallets: ['metamask', 'walletconnect'],
           social: ['google', 'email'],
         }}
-        title="Connect to Play"
-        subtitle="Sign in with your wallet or account"
+        title="Sign In"
       />
     </div>
   );

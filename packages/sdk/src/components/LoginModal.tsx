@@ -22,7 +22,6 @@ interface LoginModalProps {
   };
   logo?: ReactNode;
   title?: string;
-  subtitle?: string;
 }
 
 const GMAIL_DOMAINS = ['gmail.com', 'googlemail.com'];
@@ -38,8 +37,7 @@ export function LoginModal({
   onSuccess,
   providers = { wallets: ['metamask', 'walletconnect'], social: ['google', 'email'] },
   logo,
-  title = 'Connect to Play',
-  subtitle = 'Sign in with your wallet or account',
+  title = 'Sign In',
 }: LoginModalProps) {
   const { status, user, error, sendEmailCode, verifyEmailCode } = useAuth();
   const { connect, isConnecting, error: walletError } = useWallet();
