@@ -171,7 +171,7 @@ export function LoginModal({
           </div>
 
           {/* Content */}
-          <div className="px-10 pt-2 pb-8" aria-busy={isLoading}>
+          <div className="px-10 pt-2 pb-10" aria-busy={isLoading}>
 
             {displayError && (
               <div className="mb-5 p-3.5 rounded-lg flex items-start gap-3" role="alert"
@@ -220,7 +220,7 @@ export function LoginModal({
             {/* ======== EMAIL INPUT ======== */}
             {view === 'email-input' && (
               <div className="space-y-5">
-                <Back onClick={() => { setView('main'); setGmailWarning(false); }} />
+                <div className="-ml-2"><Back onClick={() => { setView('main'); setGmailWarning(false); }} /></div>
                 <div>
                   <label htmlFor="sk-email" style={{ fontFamily: 'Orbitron, monospace', fontSize: '11px', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(156,163,175,0.5)', display: 'block', marginBottom: '8px' }}>
                     Email address
@@ -252,7 +252,7 @@ export function LoginModal({
             {/* ======== OTP VERIFY ======== */}
             {view === 'email-verify' && (
               <div className="space-y-6">
-                <Back onClick={() => { setView('email-input'); setOtpDigits(['', '', '', '', '', '']); }} />
+                <div className="-ml-2"><Back onClick={() => { setView('email-input'); setOtpDigits(['', '', '', '', '', '']); }} /></div>
                 <div className="text-center">
                   <p className="text-gray-400" style={{ fontFamily: 'Inter, sans-serif', fontSize: '15px' }}>Enter the 6-digit code sent to</p>
                   <p className="mt-1.5" style={{ color: '#22d3ee', fontFamily: 'JetBrains Mono, monospace', fontSize: '15px' }}>{email}</p>
@@ -337,12 +337,12 @@ function Btn({ onClick, disabled, text, loading, icon }: {
 function Back({ onClick }: { onClick: () => void }) {
   return (
     <button onClick={onClick}
-      className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200"
-      style={{ color: 'rgba(34,211,238,0.6)', fontFamily: 'Orbitron, monospace', fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', border: '1px solid rgba(34,211,238,0.12)', background: 'transparent' }}
+      className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg transition-all duration-200"
+      style={{ color: 'rgba(34,211,238,0.6)', fontFamily: 'Orbitron, monospace', fontSize: '12px', letterSpacing: '0.1em', textTransform: 'uppercase', border: '1px solid rgba(34,211,238,0.12)', background: 'transparent' }}
       onMouseEnter={(e) => { e.currentTarget.style.color = '#22d3ee'; e.currentTarget.style.borderColor = 'rgba(34,211,238,0.3)'; e.currentTarget.style.background = 'rgba(34,211,238,0.06)'; }}
       onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(34,211,238,0.6)'; e.currentTarget.style.borderColor = 'rgba(34,211,238,0.12)'; e.currentTarget.style.background = 'transparent'; }}
     >
-      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
       Back
     </button>
   );
