@@ -12,24 +12,80 @@ interface WalletConnectOptions {
 // Timeout for WalletConnect pairing (2 minutes)
 const WC_CONNECT_TIMEOUT_MS = 120_000;
 
+/**
+ * Await IndexedDB database deletion (wraps IDBOpenDBRequest in a promise).
+ */
+function deleteIDB(name: string): Promise<void> {
+  return new Promise((resolve) => {
+    try {
+      const req = indexedDB.deleteDatabase(name);
+      req.onsuccess = () => resolve();
+      req.onerror = () => resolve(); // non-fatal
+      req.onblocked = () => resolve(); // don't hang if blocked
+    } catch {
+      resolve();
+    }
+  });
+}
+
+/**
+ * Nuke ALL WalletConnect storage (localStorage + IndexedDB).
+ * Must complete BEFORE EthereumProvider.init() runs, because init
+ * restores stale sessions and fires "Pending session not found" errors.
+ */
+async function clearAllWalletConnectStorage(): Promise<void> {
+  // 1. Clear localStorage (sync)
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('wc@') || key.startsWith('walletconnect') || key.startsWith('WALLETCONNECT'))) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+  } catch { /* non-fatal */ }
+
+  // 2. Delete IndexedDB databases (async -- must await before provider init)
+  try {
+    const deletions: Promise<void>[] = [];
+
+    if (typeof indexedDB.databases === 'function') {
+      // Chrome/Edge: enumerate and delete all WC databases
+      const allDbs = await indexedDB.databases();
+      for (const db of allDbs) {
+        if (db.name && (
+          db.name.includes('walletconnect') ||
+          db.name.includes('WALLET_CONNECT') ||
+          db.name.startsWith('wc@')
+        )) {
+          deletions.push(deleteIDB(db.name));
+        }
+      }
+    } else {
+      // Fallback: delete known database names
+      const knownDbs = [
+        'WALLET_CONNECT_V2_INDEXED_DB',
+        'walletconnect',
+        'wc@2:core:0.3//keychain',
+        'wc@2:core:0.3//messages',
+        'wc@2:core:0.3//subscription',
+        'wc@2:core:0.3//history',
+        'wc@2:core:0.3//expirer',
+        'wc@2:core:0.3//pairing',
+        'wc@2:universal_provider',
+      ];
+      for (const name of knownDbs) {
+        deletions.push(deleteIDB(name));
+      }
+    }
+
+    await Promise.all(deletions);
+  } catch { /* non-fatal */ }
+}
+
 export function createWalletConnectConnector(options: WalletConnectOptions): WalletConnector {
   let provider: any = null;
-
-  async function getProvider() {
-    if (provider) return provider;
-
-    // Dynamic import to avoid bundling if not used
-    const { EthereumProvider } = await import('@walletconnect/ethereum-provider');
-
-    provider = await EthereumProvider.init({
-      projectId: options.projectId,
-      chains: options.chains || [1], // Default to mainnet
-      showQrModal: true,
-      optionalChains: [137, 56, 42161, 10, 8453], // Polygon, BSC, Arbitrum, Optimism, Base
-    });
-
-    return provider;
-  }
 
   return {
     id: 'walletconnect',
@@ -40,15 +96,22 @@ export function createWalletConnectConnector(options: WalletConnectOptions): Wal
     },
 
     async connect(): Promise<ConnectedWallet> {
-      let wc = await getProvider();
+      // Step 1: Nuke all stale WC data BEFORE creating the provider.
+      // EthereumProvider.init() restores sessions on creation, so stale
+      // data must be gone before that call.
+      await clearAllWalletConnectStorage();
 
-      // Clear any stale session so enable() always creates a fresh pairing.
-      // After disconnect, recreate the provider since it can be in a broken state.
-      if (wc.session) {
-        try { await wc.disconnect(); } catch { /* ignore */ }
-        provider = null;
-        wc = await getProvider();
-      }
+      // Step 2: Always create a fresh provider
+      provider = null;
+
+      const { EthereumProvider } = await import('@walletconnect/ethereum-provider');
+      const wc = await EthereumProvider.init({
+        projectId: options.projectId,
+        chains: options.chains || [1],
+        showQrModal: true,
+        optionalChains: [137, 56, 42161, 10, 8453],
+      });
+      provider = wc;
 
       // Wrap enable() with a timeout so it can't hang forever
       const accounts = await Promise.race([

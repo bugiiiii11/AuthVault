@@ -5,14 +5,16 @@ SignaKit (formerly AuthVault) -- self-hosted Web3Auth replacement for Swarm Resi
 Authentication + transaction signing only. No wallet UI, no token display, no custody.
 
 ## Current State
-- Session: 8 complete
-- Phase: Google/MetaMask/Email login tested and working. HUD modal redesign done. Next: fix Railway SSL, WalletConnect+Trust Wallet, integrate into Swarm Resistance
+- Session: 10 complete
+- Phase: Integrated into Swarm Resistance frontend. MetaMask + Email working. Next: fix Google OAuth 401 (duplicate Supabase client), fix WalletConnect relay hang, deploy
 - Repo: github.com/bugiiiii11/AuthVault (folder name kept, package names renamed to signakit)
+- Swarm frontend: C:\Users\cryptomeda\Desktop\Swarm\myprojects\swarm-dev\frontend (separate repo, JSX, npm)
 - Supabase: project hldkdiibvsdtgxnqaaxq, supabase_vault v0.3.1 installed
 - Build: 4/4 packages clean, 33/33 crypto tests passing
-- Backend: live at authvaultbackend-production.up.railway.app (no libsodium -- Node.js crypto only)
+- Backend: live at authvaultbackend-production.up.railway.app (SSL broken on Windows, use Vite proxy for dev)
 - Demo: live at auth-vault-demo.vercel.app
-- Next blocker: fix Railway SSL, WalletConnect+Trust Wallet, integrate into Swarm Resistance
+- Production domain: swarmresistance.com (not cryptomeda.tech)
+- Next blocker: Google OAuth redirect, api.swarmresistance.com for SSL fix, WalletConnect stale sessions
 
 ## Tech Stack
 - Monorepo: Turborepo + pnpm 10
@@ -52,6 +54,7 @@ Authentication + transaction signing only. No wallet UI, no token display, no cu
 - `/doc-update` -- Update handoff.md and project docs
 - `/save` -- Emergency context save before compaction
 - `/design` -- Swarm Resistance UI system (colors, components, accessibility)
+- `/skillscanner` -- Scan a Claude Code skill for scams, malicious code, and safety issues before installing
 
 ## Key Files
 - `handoff.md` -- Session history and "What To Do Next"

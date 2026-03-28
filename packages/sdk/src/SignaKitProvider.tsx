@@ -1,9 +1,24 @@
-import { createContext, useContext, useState, useEffect, useMemo, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, type ReactNode } from 'react';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { AuthState, AuthUser, AuthResponse } from '@signakit/types';
 import { SignaKitClient } from './core/client';
 import { loadSession, loadUser, saveSession, saveUser, clearSession, getDeviceId } from './core/session';
 import { storePrivateKey, hasPrivateKey } from './core/privateKeyStore';
+
+// Module-level Supabase singleton. React StrictMode double-mounts components,
+// creating two GoTrueClient instances that race to process the OAuth URL hash.
+// The second one gets 401 because the hash tokens are already consumed.
+// A module-level singleton ensures only ONE client ever exists.
+const _supabaseCache = new Map<string, SupabaseClient>();
+function getOrCreateSupabaseClient(url: string, anonKey: string): SupabaseClient {
+  const cacheKey = `${url}::${anonKey}`;
+  let client = _supabaseCache.get(cacheKey);
+  if (!client) {
+    client = createClient(url, anonKey);
+    _supabaseCache.set(cacheKey, client);
+  }
+  return client;
+}
 
 // -- Transport decryption helpers (Web Crypto API, no libsodium needed) --
 
@@ -155,9 +170,10 @@ export function SignaKitProvider({
     [backendUrl, chains, walletConnectProjectId, supabaseUrl, supabaseAnonKey, theme],
   );
 
+  // Use module-level singleton to prevent Multiple GoTrueClient instances.
   const supabaseClient = useMemo<SupabaseClient | null>(() => {
     if (!supabaseUrl || !supabaseAnonKey) return null;
-    return createClient(supabaseUrl, supabaseAnonKey);
+    return getOrCreateSupabaseClient(supabaseUrl, supabaseAnonKey);
   }, [supabaseUrl, supabaseAnonKey]);
 
   /**
@@ -279,18 +295,46 @@ export function SignaKitProvider({
     }
   }, [client, ensureLocalKey]);
 
+  // Track whether we've already handled a Google OAuth callback in this session
+  const googleHandledRef = useRef(false);
+
   // Handle Google OAuth redirect callback via Supabase onAuthStateChange
   useEffect(() => {
     if (!supabaseClient) return;
 
+    // Explicitly trigger PKCE code exchange on mount.
+    // In Supabase JS v2, if the URL has ?code=..., getSession() exchanges it.
+    // Without this, the code exchange may not happen until something reads the session.
+    supabaseClient.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        console.log('[SignaKit] getSession found existing Supabase session:', data.session.user.app_metadata?.provider);
+      }
+    });
+
     const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
       async (event, session) => {
-        if (event !== 'SIGNED_IN' || !session) return;
-        if (session.user.app_metadata?.provider !== 'google') return;
+        console.log('[SignaKit] onAuthStateChange:', event, session?.user?.app_metadata?.provider);
 
-        // Skip if we already have a SignaKit session for this user
-        const existing = loadSession();
-        if (existing) return;
+        // Accept SIGNED_IN, TOKEN_REFRESHED, and INITIAL_SESSION -- PKCE flow
+        // may fire different events depending on Supabase JS version.
+        if (!session) return;
+        if (event !== 'SIGNED_IN' && event !== 'TOKEN_REFRESHED' && event !== 'INITIAL_SESSION') return;
+
+        // Accept Google users regardless of app_metadata.provider value --
+        // linked identities may show 'email' even for Google logins.
+        const identities = session.user.identities || [];
+        const hasGoogleIdentity = identities.some(
+          (id: { provider?: string }) => id.provider === 'google'
+        );
+        const providerIsGoogle = session.user.app_metadata?.provider === 'google';
+
+        if (!providerIsGoogle && !hasGoogleIdentity) return;
+
+        // Prevent duplicate handling (StrictMode double-fire, multiple events)
+        if (googleHandledRef.current) return;
+        googleHandledRef.current = true;
+
+        console.log('[SignaKit] Processing Google OAuth callback...');
 
         // Retry logic: for brand-new Google users, Supabase may need a moment
         // before the admin API can verify the freshly-issued access token.
@@ -302,18 +346,21 @@ export function SignaKitProvider({
             }
             const res = await client.authGoogle(session.access_token, deviceId);
             await handleAuthResponse(res);
+            console.log('[SignaKit] Google OAuth callback succeeded');
             return;
           } catch (err: unknown) {
             // Don't retry on rate limit (429) or client errors (4xx)
-            const status = (err as { status?: number }).status;
-            if (status === 429 || (status && status >= 400 && status < 500 && status !== 401)) {
-              console.error('Google OAuth callback failed:', err);
+            const errStatus = (err as { status?: number }).status;
+            if (errStatus === 429 || (errStatus && errStatus >= 400 && errStatus < 500 && errStatus !== 401)) {
+              console.error('[SignaKit] Google OAuth callback failed:', err);
               setState(prev => ({ ...prev, status: 'unauthenticated' }));
+              googleHandledRef.current = false;
               return;
             }
             if (attempt === maxRetries - 1) {
-              console.error('Google OAuth callback failed after retries:', err);
+              console.error('[SignaKit] Google OAuth callback failed after retries:', err);
               setState(prev => ({ ...prev, status: 'unauthenticated' }));
+              googleHandledRef.current = false;
             }
           }
         }

@@ -106,6 +106,19 @@ export async function hasPrivateKey(userId: string, curve: string): Promise<bool
 }
 
 /**
+ * Retrieve and decrypt the private key as a hex string.
+ * Convenience wrapper used by the bridge provider for private key export.
+ */
+export async function getPrivateKeyHex(
+  userId: string,
+  curve: string,
+): Promise<string | null> {
+  const bytes = await getPrivateKey(userId, curve);
+  if (!bytes) return null;
+  return bytesToHex(bytes);
+}
+
+/**
  * Delete the private key from IndexedDB (e.g. on logout).
  */
 export async function deletePrivateKey(userId: string, curve: string): Promise<void> {

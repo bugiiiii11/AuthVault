@@ -13,6 +13,7 @@ interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: (user: unknown) => void;
+  onGoogleLogin?: () => void | Promise<void>;
   providers?: {
     social?: ('google' | 'email')[];
     wallets?: ('metamask' | 'walletconnect' | 'coinbase')[];
@@ -31,6 +32,7 @@ export function LoginModal({
   isOpen,
   onClose,
   onSuccess,
+  onGoogleLogin: externalGoogleLogin,
   providers = { wallets: ['metamask', 'walletconnect'], social: ['google', 'email'] },
   logo,
   title = 'Sign In',
@@ -77,12 +79,17 @@ export function LoginModal({
   }, [resendTimer]);
 
   const handleGoogleLogin = useCallback(async () => {
+    // Use external handler if provided (e.g. bridge with its own Supabase singleton)
+    if (externalGoogleLogin) {
+      await externalGoogleLogin();
+      return;
+    }
     if (!supabaseClient) return;
     await supabaseClient.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: window.location.origin },
     });
-  }, [supabaseClient]);
+  }, [supabaseClient, externalGoogleLogin]);
 
   const handleWalletConnect = useCallback(async (provider: WalletProvider) => {
     setConnectingWallet(provider);
@@ -134,7 +141,7 @@ export function LoginModal({
       role="dialog" aria-modal="true" aria-labelledby="sk-title"
       style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}
     >
-      <div className="relative w-full max-w-[500px]" style={{ animation: 'sk-in 0.3s ease-out' }}>
+      <div className="relative" style={{ animation: 'sk-in 0.3s ease-out', width: '100%', maxWidth: '500px' }}>
         <div
           className="relative rounded-xl overflow-hidden"
           style={{

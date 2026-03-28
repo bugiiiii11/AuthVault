@@ -1,7 +1,7 @@
 // SignaKit SDK - Main exports
 
 // Provider
-export { SignaKitProvider } from './SignaKitProvider';
+export { SignaKitProvider, useSignaKitContext } from './SignaKitProvider';
 export type { SignaKitConfig, SignaKitContextValue } from './SignaKitProvider';
 
 // Hooks
@@ -22,6 +22,7 @@ export type { WalletConnector, ConnectedWallet } from './connectors/types';
 export { SignaKitClient, SignaKitAPIError } from './core/client';
 export { getDeviceId, loadSession, clearSession } from './core/session';
 export { storeDeviceShare, getDeviceShare, hasDeviceShare, clearAllShares, getOrCreateEncryptionKey } from './core/deviceShare';
+export { getPrivateKeyHex } from './core/privateKeyStore';
 export { generateAndDistributeKeys } from './core/keyManager';
 
 // Crypto
