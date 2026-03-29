@@ -5,8 +5,8 @@ SignaKit (formerly AuthVault) -- self-hosted Web3Auth replacement for Swarm Resi
 Authentication + transaction signing only. No wallet UI, no token display, no custody.
 
 ## Current State
-- Session: 10 complete
-- Phase: Integrated into Swarm Resistance frontend. MetaMask + Email working. Next: fix Google OAuth 401 (duplicate Supabase client), fix WalletConnect relay hang, deploy
+- Session: 11 complete
+- Phase: Google OAuth + MetaMask + Email working on Swarm frontend. Next: fix WalletConnect relay, deploy to production
 - Repo: github.com/bugiiiii11/AuthVault (folder name kept, package names renamed to signakit)
 - Swarm frontend: C:\Users\cryptomeda\Desktop\Swarm\myprojects\swarm-dev\frontend (separate repo, JSX, npm)
 - Supabase: project hldkdiibvsdtgxnqaaxq, supabase_vault v0.3.1 installed
@@ -14,7 +14,7 @@ Authentication + transaction signing only. No wallet UI, no token display, no cu
 - Backend: live at authvaultbackend-production.up.railway.app (SSL broken on Windows, use Vite proxy for dev)
 - Demo: live at auth-vault-demo.vercel.app
 - Production domain: swarmresistance.com (not cryptomeda.tech)
-- Next blocker: Google OAuth redirect, api.swarmresistance.com for SSL fix, WalletConnect stale sessions
+- Next blocker: WalletConnect relay, api.swarmresistance.com for SSL fix, Vercel deployment
 
 ## Tech Stack
 - Monorepo: Turborepo + pnpm 10

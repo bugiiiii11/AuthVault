@@ -14,6 +14,25 @@
 | 8 | 2026-03-27 | Testing, bug fixes, HUD modal redesign | Google OAuth first-login fix, WalletConnect fixes, full HUD glass modal redesign, demo cleanup |
 | 9 | 2026-03-28 | Swarm Resistance integration | SignaKit integrated into Swarm frontend, MetaMask + Email working, bridge provider, Vite proxy for SSL |
 | 10 | 2026-03-28 | Bug fixes, bridge improvements | Google OAuth duplicate client fix, WalletConnect IndexedDB cleanup, private key export, Settings page mock |
+| 11 | 2026-03-29 | Google OAuth 401 fix | Root cause: wrong Supabase anon key. Also: external client prop, getSession race fix, WC metadata + Polygon default |
+
+## What Was Done (Session 11) -- Google OAuth 401 Fix
+
+1. **Root cause found: wrong Supabase anon key** -- The Swarm frontend `.env` had a rotated anon key from March 2025 (project keys were regenerated in March 2026). Every Supabase request sent an invalid `apikey` header, causing 401 on implicit flow, PKCE, and session recovery. Fix: updated `VITE_SUPABASE_ANON_KEY` to the current key. This was the sole cause of the persistent 401 across all flows.
+
+2. **SignaKitProvider: external Supabase client prop** -- Added optional `supabaseClient` prop so the host app can create and pass a single Supabase client instance. When provided, the SDK skips internal `createClient` entirely. Eliminates duplicate GoTrueClient risk from Vite pre-bundling module scope issues. Files: `SignaKitProvider.tsx`.
+
+3. **Removed getSession() race condition** -- The explicit `supabaseClient.auth.getSession()` call in `useEffect` raced with GoTrueClient's `_initialize()` for PKCE code exchange. Both tried to exchange the single-use PKCE code, causing 401. Fix: removed the explicit call; `onAuthStateChange` listener catches the session from `_initialize` automatically. Files: `SignaKitProvider.tsx`.
+
+4. **WalletConnect: metadata + Polygon default** -- Added `metadata` object (name, description, url, icons) to `EthereumProvider.init()` for proper WC relay routing. Changed default primary chain from `[1]` (Ethereum) to `[137]` (Polygon) to avoid `switchEthereumChain` race condition that crashed after wallet approval. Made chains configurable via options. Files: `walletconnect.ts`.
+
+5. **Swarm frontend Vite config fixes** -- Added `resolve.alias` for `@supabase/supabase-js` to force single module instance. Excluded `@signakit/sdk` and `@supabase/supabase-js` from `optimizeDeps` (esbuild pre-bundler ignores `resolve.alias`, creating duplicate module scopes). Updated `.env.example` with correct defaults. Files: `vite.config.js`, `.env.example`.
+
+6. **Two Supabase projects architecture confirmed** -- SignaKit Supabase (auth + keys) and Swarm Resistance Supabase (game data, codenames, XP) are independent. Different URLs, keys, localStorage keys. Bridge passes wallet address from SignaKit to Swarm; `ensure_player_profile()` auto-creates `Hero_XXXX` codename on first login. No conflicts.
+
+**Files changed (AuthVault repo):** `SignaKitProvider.tsx`, `LoginModal.tsx`, `walletconnect.ts`
+**Files changed (Swarm repo):** `Web3AuthProvider.jsx`, `vite.config.js`, `.env`, `.env.example`
+**Committed:** 1a1f979
 
 ## What Was Done (Session 10) -- Bug Fixes, Bridge Improvements
 
@@ -185,21 +204,20 @@
 ## Known Issues
 
 - Gmail email OTP: Supabase auto-links Gmail identities with Google OAuth, causing verifyOtp to fail. Handled by Gmail detection in LoginModal (redirects to Google login). Not a bug, by design.
-- Railway SSL: TLS handshake fails on Windows (curl exit code 35, `ERR_SSL_PROTOCOL_ERROR` in Chrome). Cert is valid but OCSP broken. Domain regeneration didn't fix it. Workaround: Vite proxy for dev, Cloudflare proxy for production.
-- WalletConnect v2: Stale session errors fixed (IndexedDB + localStorage cleanup). But WC still hangs after wallet approval -- relay response never arrives. Possibly WC Cloud project ID domain whitelist or WC version issue.
-- Google OAuth: Redirect works (returns to localhost with `#access_token`). But Supabase `_getSessionFromURL` gets 401 calling `/auth/v1/user` with the fresh token. Root cause: likely two copies of `@supabase/supabase-js` (one bundled in SDK pre-bundle, one from app node_modules) despite externalization + dedupe config. May need to force single copy via Vite alias or try PKCE flow.
-- Multiple GoTrueClient: Module-level singleton added. Warning eliminated when singleton works, but Vite pre-bundling may create separate copies that bypass the singleton.
+- Railway SSL: TLS handshake fails on Windows (curl exit code 35, `ERR_SSL_PROTOCOL_ERROR` in Chrome). Cert is valid but OCSP broken. Workaround: Vite proxy for dev, Cloudflare proxy for production.
+- WalletConnect v2: Metadata and Polygon default chain added (session 11). Stale session cleanup works. But relay still unreliable -- `ERR_NAME_NOT_RESOLVED` for `relay.walletconnect.org` seen intermittently. May be DNS/network issue or WC Cloud project ID domain whitelist.
+- Supabase anon key rotation: Project `hldkdiibvsdtgxnqaaxq` keys were regenerated in March 2026. Any env file with the old key (iat 1742913387) will cause 401 on all Supabase requests. Always use the current key from Supabase dashboard.
 
 ## What To Do Next
 
 | Priority | Task | Details |
 |----------|------|---------|
-| 1 | Fix Google OAuth 401 | Force single `@supabase/supabase-js` copy via Vite alias (point to app's node_modules), or try PKCE flow (`flowType: 'pkce'`), or manually process URL hash before Supabase client init |
-| 2 | Fix WalletConnect relay | Hangs after wallet approval. Check WC Cloud project ID domain whitelist (must include localhost:3000). Consider downgrading `@walletconnect/ethereum-provider` version |
-| 3 | Test private key export | Settings page should work with bridge mock `provider.request({ method: "eth_private_key" })` |
-| 4 | Set up api.swarmresistance.com | Point subdomain to Railway via Cloudflare proxy. Permanent SSL fix |
-| 5 | Deploy Swarm frontend | Deploy to Vercel with SignaKit env vars |
-| 6 | Test multi-device | Same Google account in 2 browsers -> same wallet address |
+| 1 | Fix WalletConnect relay | Check WC Cloud dashboard: project ID `d024ad88991a640e99211fcc159218d9` must whitelist `localhost:3000`. Try `nslookup relay.walletconnect.org` to verify DNS. Consider downgrading `@walletconnect/ethereum-provider` if relay remains unreliable |
+| 2 | Test private key export | Settings page should work with bridge mock `provider.request({ method: "eth_private_key" })`. Verify on Swarm frontend |
+| 3 | Set up api.swarmresistance.com | Point subdomain to Railway via Cloudflare proxy. Permanent SSL fix for production |
+| 4 | Deploy Swarm frontend | Deploy to Vercel with SignaKit env vars. SDK must be published to npm or bundled differently (tarball won't work on Vercel) |
+| 5 | Test multi-device | Same Google account in 2 browsers -> same wallet address |
+| 6 | Remove debug logging | Remove `console.log('[SignaKit] Google click:...')` from LoginModal before production |
 
 ## Deployment Env Vars
 
