@@ -79,12 +79,16 @@ export function LoginModal({
   }, [resendTimer]);
 
   const handleGoogleLogin = useCallback(async () => {
+    console.log('[SignaKit] Google click:', { hasExternal: !!externalGoogleLogin, hasSupabase: !!supabaseClient });
     // Use external handler if provided (e.g. bridge with its own Supabase singleton)
     if (externalGoogleLogin) {
       await externalGoogleLogin();
       return;
     }
-    if (!supabaseClient) return;
+    if (!supabaseClient) {
+      console.error('[SignaKit] Google login blocked: supabaseClient is null');
+      return;
+    }
     await supabaseClient.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: window.location.origin },

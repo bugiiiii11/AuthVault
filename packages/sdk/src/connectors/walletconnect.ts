@@ -6,7 +6,10 @@ import type { WalletConnector, ConnectedWallet } from './types';
 
 interface WalletConnectOptions {
   projectId: string;
+  /** Primary EVM chain IDs (default: [137] Polygon). Wallet will connect on these chains. */
   chains?: number[];
+  /** Additional supported chains (default: [1, 56, 42161, 10, 8453]). */
+  optionalChains?: number[];
 }
 
 // Timeout for WalletConnect pairing (2 minutes)
@@ -107,9 +110,15 @@ export function createWalletConnectConnector(options: WalletConnectOptions): Wal
       const { EthereumProvider } = await import('@walletconnect/ethereum-provider');
       const wc = await EthereumProvider.init({
         projectId: options.projectId,
-        chains: options.chains || [1],
+        chains: options.chains || [137], // Polygon by default -- avoids chain-switch race
         showQrModal: true,
-        optionalChains: [137, 56, 42161, 10, 8453],
+        optionalChains: (options.optionalChains || [1, 56, 42161, 10, 8453]) as [number, ...number[]],
+        metadata: {
+          name: 'Swarm Resistance',
+          description: 'Swarm Resistance Gaming Platform',
+          url: typeof window !== 'undefined' ? window.location.origin : 'https://swarmresistance.com',
+          icons: ['https://swarmresistance.com/Favicon.png'],
+        },
       });
       provider = wc;
 

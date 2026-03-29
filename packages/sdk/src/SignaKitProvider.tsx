@@ -144,6 +144,9 @@ interface SignaKitProviderProps {
   walletConnectProjectId?: string;
   supabaseUrl?: string;
   supabaseAnonKey?: string;
+  /** Pass an externally-created Supabase client to guarantee a single instance.
+   *  When provided, supabaseUrl / supabaseAnonKey are ignored for client creation. */
+  supabaseClient?: SupabaseClient;
   theme?: Record<string, unknown>;
 }
 
@@ -154,6 +157,7 @@ export function SignaKitProvider({
   walletConnectProjectId,
   supabaseUrl,
   supabaseAnonKey,
+  supabaseClient: externalSupabaseClient,
   theme,
 }: SignaKitProviderProps) {
   const [state, setState] = useState<AuthState>({
@@ -170,11 +174,13 @@ export function SignaKitProvider({
     [backendUrl, chains, walletConnectProjectId, supabaseUrl, supabaseAnonKey, theme],
   );
 
-  // Use module-level singleton to prevent Multiple GoTrueClient instances.
+  // Prefer externally-provided client (guaranteed single instance).
+  // Fall back to module-level singleton for standalone / demo usage.
   const supabaseClient = useMemo<SupabaseClient | null>(() => {
+    if (externalSupabaseClient) return externalSupabaseClient;
     if (!supabaseUrl || !supabaseAnonKey) return null;
     return getOrCreateSupabaseClient(supabaseUrl, supabaseAnonKey);
-  }, [supabaseUrl, supabaseAnonKey]);
+  }, [externalSupabaseClient, supabaseUrl, supabaseAnonKey]);
 
   /**
    * Ensure the private key is stored in IndexedDB for this user.
@@ -298,18 +304,12 @@ export function SignaKitProvider({
   // Track whether we've already handled a Google OAuth callback in this session
   const googleHandledRef = useRef(false);
 
-  // Handle Google OAuth redirect callback via Supabase onAuthStateChange
+  // Handle Google OAuth redirect callback via Supabase onAuthStateChange.
+  // NOTE: Do NOT call getSession() here -- GoTrueClient._initialize() already
+  // handles PKCE code exchange automatically. Calling getSession() races with
+  // _initialize and causes a 401 (PKCE codes are single-use).
   useEffect(() => {
     if (!supabaseClient) return;
-
-    // Explicitly trigger PKCE code exchange on mount.
-    // In Supabase JS v2, if the URL has ?code=..., getSession() exchanges it.
-    // Without this, the code exchange may not happen until something reads the session.
-    supabaseClient.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        console.log('[SignaKit] getSession found existing Supabase session:', data.session.user.app_metadata?.provider);
-      }
-    });
 
     const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
       async (event, session) => {
