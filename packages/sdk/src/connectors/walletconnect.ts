@@ -16,28 +16,12 @@ interface WalletConnectOptions {
 const WC_CONNECT_TIMEOUT_MS = 120_000;
 
 /**
- * Await IndexedDB database deletion (wraps IDBOpenDBRequest in a promise).
+ * Clear WalletConnect localStorage keys (sync, no deadlock risk).
+ * IndexedDB is intentionally NOT deleted here -- deleting databases while
+ * the old provider still has open connections causes an IndexedDB deadlock
+ * that blocks EthereumProvider.init() indefinitely.
  */
-function deleteIDB(name: string): Promise<void> {
-  return new Promise((resolve) => {
-    try {
-      const req = indexedDB.deleteDatabase(name);
-      req.onsuccess = () => resolve();
-      req.onerror = () => resolve(); // non-fatal
-      req.onblocked = () => resolve(); // don't hang if blocked
-    } catch {
-      resolve();
-    }
-  });
-}
-
-/**
- * Nuke ALL WalletConnect storage (localStorage + IndexedDB).
- * Must complete BEFORE EthereumProvider.init() runs, because init
- * restores stale sessions and fires "Pending session not found" errors.
- */
-async function clearAllWalletConnectStorage(): Promise<void> {
-  // 1. Clear localStorage (sync)
+function clearWalletConnectLocalStorage(): void {
   try {
     const keysToRemove: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
@@ -47,43 +31,6 @@ async function clearAllWalletConnectStorage(): Promise<void> {
       }
     }
     keysToRemove.forEach(k => localStorage.removeItem(k));
-  } catch { /* non-fatal */ }
-
-  // 2. Delete IndexedDB databases (async -- must await before provider init)
-  try {
-    const deletions: Promise<void>[] = [];
-
-    if (typeof indexedDB.databases === 'function') {
-      // Chrome/Edge: enumerate and delete all WC databases
-      const allDbs = await indexedDB.databases();
-      for (const db of allDbs) {
-        if (db.name && (
-          db.name.includes('walletconnect') ||
-          db.name.includes('WALLET_CONNECT') ||
-          db.name.startsWith('wc@')
-        )) {
-          deletions.push(deleteIDB(db.name));
-        }
-      }
-    } else {
-      // Fallback: delete known database names
-      const knownDbs = [
-        'WALLET_CONNECT_V2_INDEXED_DB',
-        'walletconnect',
-        'wc@2:core:0.3//keychain',
-        'wc@2:core:0.3//messages',
-        'wc@2:core:0.3//subscription',
-        'wc@2:core:0.3//history',
-        'wc@2:core:0.3//expirer',
-        'wc@2:core:0.3//pairing',
-        'wc@2:universal_provider',
-      ];
-      for (const name of knownDbs) {
-        deletions.push(deleteIDB(name));
-      }
-    }
-
-    await Promise.all(deletions);
   } catch { /* non-fatal */ }
 }
 
@@ -99,14 +46,25 @@ export function createWalletConnectConnector(options: WalletConnectOptions): Wal
     },
 
     async connect(): Promise<ConnectedWallet> {
-      // Step 1: Nuke all stale WC data BEFORE creating the provider.
-      // EthereumProvider.init() restores sessions on creation, so stale
-      // data must be gone before that call.
-      await clearAllWalletConnectStorage();
+      // Step 1: Fire-and-forget disconnect on the old provider.
+      // Do NOT await -- disconnect() can hang if the relay is unresponsive,
+      // and awaiting it while the provider holds IndexedDB connections open
+      // will deadlock any subsequent IndexedDB operations.
+      if (provider) {
+        const old = provider;
+        provider = null;
+        // Fire and forget: best-effort cleanup, no await
+        old.disconnect().catch(() => {});
+        // Force-close the relay WebSocket so it doesn't send stale messages
+        try { old.signer?.client?.core?.relayer?.provider?.connection?.close(); } catch { /* ignore */ }
+      }
 
-      // Step 2: Always create a fresh provider
-      provider = null;
+      // Step 2: Clear localStorage (sync, safe)
+      clearWalletConnectLocalStorage();
 
+      // Step 3: Create a fresh provider.
+      // init() may restore a stale session from IndexedDB -- that's fine,
+      // we'll clean it up before calling enable().
       const { EthereumProvider } = await import('@walletconnect/ethereum-provider');
       const wc = await EthereumProvider.init({
         projectId: options.projectId,
@@ -120,9 +78,16 @@ export function createWalletConnectConnector(options: WalletConnectOptions): Wal
           icons: ['https://swarmresistance.com/Favicon.png'],
         },
       });
+
+      // Step 4: If init() restored a stale session, disconnect it on the
+      // new provider so enable() creates a fresh pairing with QR modal.
+      if (wc.session) {
+        try { await wc.disconnect(); } catch { /* ignore */ }
+      }
+
       provider = wc;
 
-      // Wrap enable() with a timeout so it can't hang forever
+      // Step 5: enable() triggers a new pairing and shows the QR modal
       const accounts = await Promise.race([
         wc.enable(),
         new Promise<never>((_, reject) =>
