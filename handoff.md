@@ -17,6 +17,23 @@
 | 11 | 2026-03-29 | Google OAuth 401 fix | Root cause: wrong Supabase anon key. Also: external client prop, getSession race fix, WC metadata + Polygon default |
 | 12 | 2026-03-30 | Localhost testing + fixes | ConnectionConfirmModal, multi-device fix, WC downgrade to v2.19, Phantom/Brave fix, email confirm fix |
 | 13 | 2026-03-30 | WalletConnect fix | WC CJS/Vite compat fixed, reconnect after logout working, IndexedDB deadlock solved |
+| 14 | 2026-03-30 | Vercel deployment | Swarm frontend deployed to Vercel dev, vendored SDK, API rewrite proxy |
+
+## What Was Done (Session 14) -- Vercel Deployment
+
+1. **Vendored SDK into Swarm repo** -- Local tarball (`signakit-sdk-0.1.0.tgz`) doesn't work on Vercel (not in git). Solution: copy built `dist/` files into `swarm-dev/frontend/lib/signakit-sdk/` with a minimal `package.json`. Dependency changed from `file:../../AuthVault/...tgz` to `file:./lib/signakit-sdk`. Files: Swarm `lib/signakit-sdk/`, `package.json`.
+
+2. **Vercel API rewrite** -- Vite dev proxy (`/signakit-api` -> Railway) only works on localhost. Added route-based rewrite in `vercel.json` that proxies `/signakit-api/*` to `authvaultbackend-production.up.railway.app`. Browser never sees Railway's broken SSL cert. `VITE_SIGNAKIT_BACKEND_URL=/signakit-api` works identically in dev and prod. Files: Swarm `vercel.json`.
+
+3. **SDK bundling fix: @noble/curves** -- Build failed because SDK left `@noble/curves/secp256k1` as an external import, but Swarm's `@noble/curves@2.0.1` removed the `./secp256k1` subpath export (AuthVault uses `1.9.7` which has it). Fix: added `noExternal: ['@noble/curves', '@noble/hashes']` to `tsup.config.ts` so crypto libs are bundled into the SDK. Files: `packages/sdk/tsup.config.ts`.
+
+4. **Gitignore fix** -- `dist/` in `.gitignore` caught `lib/signakit-sdk/dist/`, so SDK files weren't committed. Added exception: `!lib/signakit-sdk/dist/`. Files: Swarm `.gitignore`.
+
+5. **External service configuration** -- Vercel env vars (5x `VITE_*`), Supabase redirect URL (`swarm-resistance-frontend-dev.vercel.app`), Google Cloud Console JS origins, Railway `ALLOWED_ORIGINS` updated.
+
+**Files changed (AuthVault repo):** `packages/sdk/tsup.config.ts`
+**Files changed (Swarm repo):** `lib/signakit-sdk/` (new), `package.json`, `package-lock.json`, `vercel.json`, `.env.example`, `.gitignore`, `src/App.jsx`, `src/contexts/Web3AuthProvider.jsx`
+**Committed:** 5bbb1af (AuthVault), 83862ca + f52eb04 (Swarm)
 
 ## What Was Done (Session 13) -- WalletConnect Fix
 
@@ -231,6 +248,7 @@
 
 | Service | URL |
 |---------|-----|
+| Swarm Dev (Vercel) | `https://swarm-resistance-frontend-dev.vercel.app` |
 | Backend (Railway) | `https://authvaultbackend-production.up.railway.app` |
 | Demo (Vercel) | `https://auth-vault-demo.vercel.app` |
 | Supabase | project `hldkdiibvsdtgxnqaaxq` |
@@ -246,11 +264,12 @@
 
 | Priority | Task | Details |
 |----------|------|---------|
-| 1 | Deploy Swarm frontend to dev | Deploy to `swarm-resistance-frontend-dev.vercel.app`. SDK must be published to npm or bundled differently (tarball won't work on Vercel) |
-| 2 | Set up api.swarmresistance.com | Point subdomain to Railway via Cloudflare proxy. Permanent SSL fix for production |
-| 3 | Test private key export | Settings page should work with bridge mock `provider.request({ method: "eth_private_key" })`. Verify on Swarm frontend |
-| 4 | Remove debug logging | Remove `console.log('[SignaKit]...')` from LoginModal and SignaKitProvider before production |
-| 5 | Test multi-device again | chaosgenesisnft DB was fixed; verify same address on Chrome + Brave after clearing localStorage |
+| 1 | Test login on Vercel dev | Test Google, MetaMask, Email, WalletConnect on `swarm-resistance-frontend-dev.vercel.app` |
+| 2 | Test private key export | Settings page should work with bridge mock `provider.request({ method: "eth_private_key" })`. Verify on Vercel dev |
+| 3 | Remove debug logging | Remove `console.log('[SignaKit]...')` from LoginModal and SignaKitProvider before production |
+| 4 | Test multi-device again | Verify same address on Chrome + Brave after clearing localStorage |
+| 5 | Set up api.swarmresistance.com | Point subdomain to Railway via Cloudflare proxy. Optional -- Vercel rewrite already handles SSL for dev |
+| 6 | Deploy to production | Point swarmresistance.com to Vercel, update OAuth redirects for prod domain |
 
 ## Deployment Env Vars
 
@@ -259,8 +278,16 @@
 SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
 SIGNAKIT_JWT_SECRET, SIGNAKIT_ENCRYPTION_MASTER_KEY
 GOOGLE_CLIENT_ID
-ALLOWED_ORIGINS=https://auth-vault-demo.vercel.app,https://swarmresistance.com,https://www.swarmresistance.com,http://localhost:3000
+ALLOWED_ORIGINS=https://auth-vault-demo.vercel.app,https://swarmresistance.com,https://www.swarmresistance.com,http://localhost:3000,https://swarm-resistance-frontend-dev.vercel.app
 NODE_ENV=production, PORT=3001
+```
+
+### Vercel (Swarm dev) -- already set
+```
+VITE_SIGNAKIT_BACKEND_URL=/signakit-api
+VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+VITE_WALLETCONNECT_PROJECT_ID
+VITE_BACKEND_BASE_URL (Swarm's own Railway backend)
 ```
 
 ### Vercel (demo) -- already set
