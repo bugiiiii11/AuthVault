@@ -16,6 +16,19 @@
 | 10 | 2026-03-28 | Bug fixes, bridge improvements | Google OAuth duplicate client fix, WalletConnect IndexedDB cleanup, private key export, Settings page mock |
 | 11 | 2026-03-29 | Google OAuth 401 fix | Root cause: wrong Supabase anon key. Also: external client prop, getSession race fix, WC metadata + Polygon default |
 | 12 | 2026-03-30 | Localhost testing + fixes | ConnectionConfirmModal, multi-device fix, WC downgrade to v2.19, Phantom/Brave fix, email confirm fix |
+| 13 | 2026-03-30 | WalletConnect fix | WC CJS/Vite compat fixed, reconnect after logout working, IndexedDB deadlock solved |
+
+## What Was Done (Session 13) -- WalletConnect Fix
+
+1. **WalletConnect CJS/Vite compatibility fixed** -- Root cause: Vite's `optimizeDeps.include` had 7 leaf-level CJS sub-packages but not the main entry point `@walletconnect/ethereum-provider`. Vite couldn't convert it to ESM on the fly. Fix: replaced all 7 entries with the single main entry point; esbuild cascades through all 53 CJS transitive deps automatically during pre-bundling. Files: Swarm `vite.config.js`.
+
+2. **WalletConnect reconnect after logout fixed** -- After logout, clicking WalletConnect again hung indefinitely (no QR modal). Two root causes: (a) `provider.disconnect()` hung because the WC relay was unresponsive, blocking all subsequent code; (b) `IndexedDB.deleteDatabase()` deadlocked because the old provider still held open DB connections, which blocked `EthereumProvider.init()`. Fix: complete rewrite of connector cleanup -- fire-and-forget disconnect (no await), force-close relay WebSocket, skip IndexedDB deletion entirely, clear stale sessions after `init()` via `wc.disconnect()` so `enable()` always creates a fresh pairing with QR modal. Files: SDK `walletconnect.ts`.
+
+3. **WC console errors are cosmetic** -- After reconnect, WC relay sends a few stale subscription messages that log at error level. These are harmless (old session topic cleanup) and stop after a few seconds. No fix needed.
+
+**Files changed (AuthVault repo):** `packages/sdk/src/connectors/walletconnect.ts`
+**Files changed (Swarm repo):** `vite.config.js`
+**Committed:** 5eb5c8b (AuthVault), a3ba157 (Swarm)
 
 ## What Was Done (Session 12) -- Localhost Testing + Fixes
 
@@ -226,19 +239,18 @@
 
 - Gmail email OTP: Supabase auto-links Gmail identities with Google OAuth, causing verifyOtp to fail. Handled by Gmail detection in LoginModal (redirects to Google login). Not a bug, by design.
 - Railway SSL: TLS handshake fails on Windows (curl exit code 35, `ERR_SSL_PROTOCOL_ERROR` in Chrome). Cert is valid but OCSP broken. Workaround: Vite proxy for dev, Cloudflare proxy for production.
-- WalletConnect v2.19 CJS/Vite incompatibility: WC v2.19 depends on many CJS-only packages (`@walletconnect/time`, `@walletconnect/window-metadata`, `elliptic`, etc.) that Vite dev server can't convert to ESM named exports. Adding them to `optimizeDeps.include` fixes some but the chain is deep. Options for next session: (a) add ALL transitive CJS deps to include list, (b) use `vite-plugin-commonjs`, (c) try WC v2.20 which may have better ESM support, (d) build a custom WC wrapper that pre-bundles everything. WC Cloud project ID is now correct (`1da1bf...06`), domains whitelisted for localhost:3000 and dev Vercel.
+- WalletConnect v2.19 console noise: After reconnect, WC relay sends stale subscription messages that log at error level. Cosmetic only -- stops after a few seconds. The CJS/Vite compat issue is fully resolved (session 13).
 - Supabase anon key rotation: Project `hldkdiibvsdtgxnqaaxq` keys were regenerated in March 2026. Any env file with the old key (iat 1742913387) will cause 401 on all Supabase requests. Always use the current key from Supabase dashboard.
 
 ## What To Do Next
 
 | Priority | Task | Details |
 |----------|------|---------|
-| 1 | Fix WalletConnect CJS/Vite compat | WC v2.19 has deep CJS deps that Vite can't convert. Try: (a) exhaustive `optimizeDeps.include`, (b) `vite-plugin-commonjs`, (c) WC v2.20, or (d) pre-bundled wrapper. Project ID and domain whitelist are correct |
-| 2 | Deploy Swarm frontend to dev | Deploy to `swarm-resistance-frontend-dev.vercel.app`. SDK must be published to npm or bundled differently (tarball won't work on Vercel) |
-| 3 | Set up api.swarmresistance.com | Point subdomain to Railway via Cloudflare proxy. Permanent SSL fix for production |
-| 4 | Test private key export | Settings page should work with bridge mock `provider.request({ method: "eth_private_key" })`. Verify on Swarm frontend |
-| 5 | Remove debug logging | Remove `console.log('[SignaKit]...')` from LoginModal and SignaKitProvider before production |
-| 6 | Test multi-device again | chaosgenesisnft DB was fixed; verify same address on Chrome + Brave after clearing localStorage |
+| 1 | Deploy Swarm frontend to dev | Deploy to `swarm-resistance-frontend-dev.vercel.app`. SDK must be published to npm or bundled differently (tarball won't work on Vercel) |
+| 2 | Set up api.swarmresistance.com | Point subdomain to Railway via Cloudflare proxy. Permanent SSL fix for production |
+| 3 | Test private key export | Settings page should work with bridge mock `provider.request({ method: "eth_private_key" })`. Verify on Swarm frontend |
+| 4 | Remove debug logging | Remove `console.log('[SignaKit]...')` from LoginModal and SignaKitProvider before production |
+| 5 | Test multi-device again | chaosgenesisnft DB was fixed; verify same address on Chrome + Brave after clearing localStorage |
 
 ## Deployment Env Vars
 
