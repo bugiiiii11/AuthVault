@@ -15,6 +15,27 @@
 | 9 | 2026-03-28 | Swarm Resistance integration | SignaKit integrated into Swarm frontend, MetaMask + Email working, bridge provider, Vite proxy for SSL |
 | 10 | 2026-03-28 | Bug fixes, bridge improvements | Google OAuth duplicate client fix, WalletConnect IndexedDB cleanup, private key export, Settings page mock |
 | 11 | 2026-03-29 | Google OAuth 401 fix | Root cause: wrong Supabase anon key. Also: external client prop, getSession race fix, WC metadata + Polygon default |
+| 12 | 2026-03-30 | Localhost testing + fixes | ConnectionConfirmModal, multi-device fix, WC downgrade to v2.19, Phantom/Brave fix, email confirm fix |
+
+## What Was Done (Session 12) -- Localhost Testing + Fixes
+
+1. **ConnectionConfirmModal** -- New HUD glass confirmation modal shown after successful login. Matches "Access Required" design: animated checkmark, wallet address badge, `< OK >` button. All inline styles (SDK Tailwind classes aren't processed by host apps). Files: `ConnectionConfirmModal.tsx`, SDK `index.ts`.
+
+2. **Multi-device address mismatch fixed** -- Root cause: `wallet_users.public_key_evm` had stale address from pre-seamless SSS era, while `encrypted_keys.evm_address` had the correct HKDF-derived address. Fix: (a) DB sync applied to all affected users, (b) `generate` route now always syncs `wallet_users` with `encrypted_keys` (was only backfilling nulls). Files: `generate.ts`.
+
+3. **WalletConnect downgraded to v2.19.0** -- v2.21+ replaced `@walletconnect/modal` with `@reown/appkit` (not installed), so QR modal didn't appear. v2.19.0 bundles `@walletconnect/modal` directly. Also fixed wrong project ID (was using Reown/Chaos Genesis ID `d024ad88...` instead of Swarm Resistance WC project). Files: SDK `package.json`, Swarm `.env`. WC still blocked by CJS/Vite compatibility -- see Known Issues.
+
+4. **Phantom popup on Brave fixed** -- EIP-6963 `requestProvider` was dispatched at module load, triggering Brave's "Which extension?" dialog for social login users. Fixed: lazy initialization, only fires when `getProvider()` is called (user clicks MetaMask). Files: `metamask.ts`.
+
+5. **Email login confirmation modal fixed** -- `prevAuthRef` wasn't reset on logout, so second login skipped confirmation. Also fixed: only show confirmation when wallet address is available (async key generation). Files: Swarm `Web3AuthProvider.jsx`.
+
+6. **Legacy Web3Auth removed from active use** -- `App.jsx` was importing `Web3AuthProvider_legacy` instead of the SignaKit bridge. Fixed import. Removed `@web3auth/*` packages from Swarm `package.json` (only used by legacy provider, reduced vulnerabilities from 60 to 34).
+
+7. **mjerabek1 user deleted** -- Removed from `wallet_users`, `encrypted_keys`, `key_access_log`, and `auth.users` in Supabase.
+
+**Files changed (AuthVault repo):** `generate.ts`, `metamask.ts`, `ConnectionConfirmModal.tsx`, SDK `index.ts`, SDK `package.json`, `pnpm-lock.yaml`
+**Files changed (Swarm repo):** `Web3AuthProvider.jsx`, `App.jsx`, `vite.config.js`, `package.json`
+**Committed:** 4c5dbf9
 
 ## What Was Done (Session 11) -- Google OAuth 401 Fix
 
@@ -205,19 +226,19 @@
 
 - Gmail email OTP: Supabase auto-links Gmail identities with Google OAuth, causing verifyOtp to fail. Handled by Gmail detection in LoginModal (redirects to Google login). Not a bug, by design.
 - Railway SSL: TLS handshake fails on Windows (curl exit code 35, `ERR_SSL_PROTOCOL_ERROR` in Chrome). Cert is valid but OCSP broken. Workaround: Vite proxy for dev, Cloudflare proxy for production.
-- WalletConnect v2: Metadata and Polygon default chain added (session 11). Stale session cleanup works. But relay still unreliable -- `ERR_NAME_NOT_RESOLVED` for `relay.walletconnect.org` seen intermittently. May be DNS/network issue or WC Cloud project ID domain whitelist.
+- WalletConnect v2.19 CJS/Vite incompatibility: WC v2.19 depends on many CJS-only packages (`@walletconnect/time`, `@walletconnect/window-metadata`, `elliptic`, etc.) that Vite dev server can't convert to ESM named exports. Adding them to `optimizeDeps.include` fixes some but the chain is deep. Options for next session: (a) add ALL transitive CJS deps to include list, (b) use `vite-plugin-commonjs`, (c) try WC v2.20 which may have better ESM support, (d) build a custom WC wrapper that pre-bundles everything. WC Cloud project ID is now correct (`1da1bf...06`), domains whitelisted for localhost:3000 and dev Vercel.
 - Supabase anon key rotation: Project `hldkdiibvsdtgxnqaaxq` keys were regenerated in March 2026. Any env file with the old key (iat 1742913387) will cause 401 on all Supabase requests. Always use the current key from Supabase dashboard.
 
 ## What To Do Next
 
 | Priority | Task | Details |
 |----------|------|---------|
-| 1 | Fix WalletConnect relay | Check WC Cloud dashboard: project ID `d024ad88991a640e99211fcc159218d9` must whitelist `localhost:3000`. Try `nslookup relay.walletconnect.org` to verify DNS. Consider downgrading `@walletconnect/ethereum-provider` if relay remains unreliable |
-| 2 | Test private key export | Settings page should work with bridge mock `provider.request({ method: "eth_private_key" })`. Verify on Swarm frontend |
+| 1 | Fix WalletConnect CJS/Vite compat | WC v2.19 has deep CJS deps that Vite can't convert. Try: (a) exhaustive `optimizeDeps.include`, (b) `vite-plugin-commonjs`, (c) WC v2.20, or (d) pre-bundled wrapper. Project ID and domain whitelist are correct |
+| 2 | Deploy Swarm frontend to dev | Deploy to `swarm-resistance-frontend-dev.vercel.app`. SDK must be published to npm or bundled differently (tarball won't work on Vercel) |
 | 3 | Set up api.swarmresistance.com | Point subdomain to Railway via Cloudflare proxy. Permanent SSL fix for production |
-| 4 | Deploy Swarm frontend | Deploy to Vercel with SignaKit env vars. SDK must be published to npm or bundled differently (tarball won't work on Vercel) |
-| 5 | Test multi-device | Same Google account in 2 browsers -> same wallet address |
-| 6 | Remove debug logging | Remove `console.log('[SignaKit] Google click:...')` from LoginModal before production |
+| 4 | Test private key export | Settings page should work with bridge mock `provider.request({ method: "eth_private_key" })`. Verify on Swarm frontend |
+| 5 | Remove debug logging | Remove `console.log('[SignaKit]...')` from LoginModal and SignaKitProvider before production |
+| 6 | Test multi-device again | chaosgenesisnft DB was fixed; verify same address on Chrome + Brave after clearing localStorage |
 
 ## Deployment Env Vars
 
@@ -246,6 +267,7 @@ VITE_WALLETCONNECT_PROJECT_ID
 | `packages/sdk/src/hooks/` | useAuth, useWallet, useSigning |
 | `packages/sdk/src/connectors/` | MetaMask, WalletConnect, Coinbase |
 | `packages/sdk/src/components/LoginModal.tsx` | Auth modal -- HUD glass design, all inline styles, 4 login methods |
+| `packages/sdk/src/components/ConnectionConfirmModal.tsx` | Post-login confirmation modal -- HUD glass, checkmark, wallet address, OK button |
 | `packages/sdk/src/SignaKitProvider.tsx` | Provider -- Supabase client, handleAuthResponse, key gen, recovery state |
 | `packages/sdk/src/core/privateKeyStore.ts` | IndexedDB store for full encrypted private key (seamless mode) |
 | `apps/backend/src/services/keyDerivation.ts` | HKDF-SHA256 key derivation service |

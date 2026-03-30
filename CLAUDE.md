@@ -5,8 +5,8 @@ SignaKit (formerly AuthVault) -- self-hosted Web3Auth replacement for Swarm Resi
 Authentication + transaction signing only. No wallet UI, no token display, no custody.
 
 ## Current State
-- Session: 11 complete
-- Phase: Google OAuth + MetaMask + Email working on Swarm frontend. Next: fix WalletConnect relay, deploy to production
+- Session: 12 complete
+- Phase: MetaMask + Google + Email working on Swarm frontend with confirmation modal. Next: fix WalletConnect CJS/Vite compat, deploy to dev environment
 - Repo: github.com/bugiiiii11/AuthVault (folder name kept, package names renamed to signakit)
 - Swarm frontend: C:\Users\cryptomeda\Desktop\Swarm\myprojects\swarm-dev\frontend (separate repo, JSX, npm)
 - Supabase: project hldkdiibvsdtgxnqaaxq, supabase_vault v0.3.1 installed
