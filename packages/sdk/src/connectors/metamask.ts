@@ -6,9 +6,15 @@ import type { WalletConnector, ConnectedWallet, EIP1193Provider, EIP6963Provider
 
 let detectedProvider: EIP1193Provider | null = null;
 let eip6963Providers: EIP6963ProviderDetail[] = [];
+let eip6963Listening = false;
 
-// Listen for EIP-6963 provider announcements
-if (typeof window !== 'undefined') {
+// Set up EIP-6963 listener lazily (on first use, not on module load).
+// Dispatching eip6963:requestProvider on load triggers Brave's
+// "Which extension?" popup even for social login users.
+function ensureEIP6963Listening(): void {
+  if (eip6963Listening || typeof window === 'undefined') return;
+  eip6963Listening = true;
+
   window.addEventListener('eip6963:announceProvider', ((event: CustomEvent<EIP6963ProviderDetail>) => {
     const detail = event.detail;
     if (detail.info.rdns === 'io.metamask' || detail.info.name.toLowerCase().includes('metamask')) {
@@ -16,11 +22,12 @@ if (typeof window !== 'undefined') {
     }
   }) as EventListener);
 
-  // Request providers
   window.dispatchEvent(new Event('eip6963:requestProvider'));
 }
 
 function getProvider(): EIP1193Provider | null {
+  ensureEIP6963Listening();
+
   // Prefer EIP-6963 discovered provider
   if (eip6963Providers.length > 0) {
     return eip6963Providers[0].provider;

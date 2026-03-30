@@ -11,6 +11,7 @@ export { useSigning } from './hooks/useSigning';
 
 // Components
 export { LoginModal } from './components/LoginModal';
+export { ConnectionConfirmModal } from './components/ConnectionConfirmModal';
 
 // Connectors
 export { createMetaMaskConnector } from './connectors/metamask';

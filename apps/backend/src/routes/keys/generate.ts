@@ -33,12 +33,12 @@ keys.post(
         .single();
 
       if (existing?.evm_address) {
-        // Backfill wallet_users.public_key_evm if missing (fixes column name bug from session 6)
+        // Always sync wallet_users with the authoritative encrypted_keys address.
+        // Prevents stale addresses from pre-seamless key schemes.
         await adminClient
           .from('wallet_users')
           .update({ public_key_evm: existing.evm_address })
-          .eq('id', auth.sub)
-          .is('public_key_evm', null);
+          .eq('id', auth.sub);
 
         return c.json({ success: true, evmAddress: existing.evm_address });
       }
