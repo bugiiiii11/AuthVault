@@ -62,7 +62,7 @@ deviceInit.post(
 
       // Retrieve private key from Vault
       const { data: privateKeyHex, error: vaultErr } = await adminClient
-        .rpc('get_user_vault_key', { p_secret_id: keyData.vault_secret_id });
+        .rpc('get_user_vault_key_for_user', { p_user_id: auth.sub, p_secret_id: keyData.vault_secret_id });
 
       if (vaultErr || !privateKeyHex) {
         throw new Error(`Vault retrieval failed: ${vaultErr?.message ?? 'empty secret'}`);
