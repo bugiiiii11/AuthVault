@@ -80,14 +80,44 @@ if (header.trim() !== 'user_id,evm_address') {
   process.exit(65);
 }
 
+const pairs = lines
+  .map((l) => l.split(','))
+  .filter(([u, a]) => u && a)
+  .map(([u, a]) => [u.trim(), a.trim()]);
+
+// A pasted secret picks up whitespace, quotes or a 0x prefix, and any of those
+// derives a completely different key. Probe the cheap variants against a few
+// rows first, then run the whole manifest with whichever one works -- and say
+// which, because a variant winning means the stored value needs fixing too.
+const variants = [];
+const seen = new Set();
+for (const [label, value] of [
+  ['as given', masterKeyHex],
+  ['whitespace trimmed', masterKeyHex.trim()],
+  ['surrounding quotes stripped', masterKeyHex.trim().replace(/^["']|["']$/g, '')],
+  ['0x prefix stripped', masterKeyHex.trim().replace(/^0x/i, '')],
+  ['0x prefix added', '0x' + masterKeyHex.trim().replace(/^0x/i, '')],
+]) {
+  if (value && !seen.has(value)) { seen.add(value); variants.push([label, value]); }
+}
+
+const probe = pairs.slice(0, 3);
+let chosen = variants[0];
+for (const v of variants) {
+  const hit = probe.every(([u, a]) =>
+    privateKeyToEvmAddress(deriveUserPrivateKey(v[1], u)).toLowerCase() === a.toLowerCase());
+  if (hit) { chosen = v; break; }
+}
+if (chosen[0] !== 'as given') {
+  console.log(`NOTE: the value only works with "${chosen[0]}" -- fix it at the source too.`);
+}
+
 let ok = 0;
 const mismatches = [];
-for (const line of lines) {
-  const [userId, expected] = line.split(',');
-  if (!userId || !expected) continue;
-  const actual = privateKeyToEvmAddress(deriveUserPrivateKey(masterKeyHex, userId));
-  if (actual.toLowerCase() === expected.trim().toLowerCase()) ok++;
-  else mismatches.push({ userId, expected: expected.trim(), actual });
+for (const [userId, expected] of pairs) {
+  const actual = privateKeyToEvmAddress(deriveUserPrivateKey(chosen[1], userId));
+  if (actual.toLowerCase() === expected.toLowerCase()) ok++;
+  else mismatches.push({ userId, expected, actual });
 }
 
 console.log(`derivation check: ${ok} match, ${mismatches.length} mismatch (of ${ok + mismatches.length})`);
@@ -105,13 +135,27 @@ if (ok === 0 && mismatches.length === 0) {
 // not belong to this project at all, rather than the wallets having drifted.
 if (ok === 0) {
   console.error('');
-  console.error('EVERY row mismatched, so the value given is not the master key this');
-  console.error('project derives from. Most likely causes, in order:');
-  console.error('  1. Railway also has SIGNAKIT_ENCRYPTION_MASTER_KEY set. env.ts reads');
-  console.error('     that one FIRST, so it -- not AUTHVAULT_ENCRYPTION_MASTER_KEY -- is');
-  console.error('     what the live wallets came from. Check both variables.');
-  console.error('  2. A different secret was pasted (the database password is not this).');
-  console.error('  3. Trailing whitespace or quotes around the value.');
+  console.error('EVERY row mismatched, and whitespace/quote/0x variants were already');
+  console.error('tried. The value given is not what these wallets were derived from.');
+  console.error('');
+  console.error('What this does NOT mean: the manifest and the UUID are fine (the salt is');
+  console.error('wallet_users.id, which is auth.sub -- generate.ts:41), and this script is');
+  console.error('checked against the real keyDerivation.ts. So the value is the problem.');
+  console.error('');
+  console.error('Check, in order:');
+  console.error('  1. Railway PROJECT-level shared variables, not just the service ones.');
+  console.error('     env.ts reads SIGNAKIT_ENCRYPTION_MASTER_KEY FIRST; if one exists at');
+  console.error('     project scope it wins and never appears in the service list.');
+  console.error('  2. Whether the service was ever REDEPLOYED after this variable was last');
+  console.error('     edited. A staged Railway variable shows the new value in the UI while');
+  console.error('     the running container still holds the old one.');
+  console.error('  3. Whether a different secret was pasted (the database password is not');
+  console.error('     this one).');
+  console.error('');
+  console.error('Decisive test if all three come up clean: create one NEW account, let it');
+  console.error('generate a wallet, and re-run. A new wallet that matches means the key was');
+  console.error('rotated and the old 43 need the vault; a new wallet that also mismatches');
+  console.error('means the running service is not using the value the dashboard shows.');
   process.exit(1);
 }
 process.exit(mismatches.length === 0 ? 0 : 1);
