@@ -34,10 +34,20 @@ The master key cannot be rotated: a new value gives all 43 users new addresses.
 
 ## Setup (once)
 
-1. Copy `backup-config.sample.json` to `%USERPROFILE%\.authvault-backup.json` and fill in the
-   DSN from Supabase → Project Settings → Database → Connection string → URI. **Use port 6543**
-   (transaction pooler); session mode on 5432 has refused every connection while 6543 answered.
-   The file lives outside the repo because it carries the database password.
+1. Save the connection details:
+
+   ```powershell
+   .\scriptsackup-authvault.ps1 -Configure
+   ```
+
+   It prompts for the URI without echoing it, refuses a URI that still has the `[YOUR-PASSWORD]`
+   placeholder, **tests the connection before saving**, and writes
+   `%USERPROFILE%\.authvault-backup.json` — outside the repo, because it carries the database
+   password. Get the URI from the Supabase dashboard's **Connect** button at the top of the page
+   (not Settings → Database, which only offers a password reset), section **Transaction pooler**,
+   and replace `[YOUR-PASSWORD]` with the database password. **Use port 6543**: session mode on
+   5432 has refused every connection while 6543 answered. `backup-config.sample.json` shows the
+   shape if you would rather write the file by hand.
 2. Register the daily task (no elevation needed, runs as you, 03:20 local):
 
    ```powershell
@@ -90,7 +100,10 @@ key should not sit in a Scheduled Task.
 ```
 
 It prompts for the key without echoing it, holds it for the child process only, and clears it
-afterwards. **Do not put the key on a command line** — PSReadLine writes whole command lines to
+afterwards. **Check Railway for both variables first:** `env.ts` reads
+`SIGNAKIT_ENCRYPTION_MASTER_KEY || AUTHVAULT_ENCRYPTION_MASTER_KEY`, so if both are set the
+SIGNAKIT one is what the live wallets were derived from and the other is a decoy. A run where
+*every* row mismatches is telling you the value is wrong, not that the wallets have drifted. **Do not put the key on a command line** — PSReadLine writes whole command lines to
 `ConsoleHost_history.txt` when the session exits, so `$env:KEY = '<value>'` lands on disk in
 plaintext. If that has already happened, run `Set-PSReadLineOption -HistorySaveStyle SaveNothing`
 in that session before closing it, then purge any surviving lines:

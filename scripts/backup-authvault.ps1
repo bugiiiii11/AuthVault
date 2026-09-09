@@ -31,6 +31,7 @@
 [CmdletBinding()]
 param(
     [switch]$Install,
+    [switch]$Configure,
     [switch]$VerifyDerivation,
     [string]$VerifyFile,
     [int]$Keep = 30
@@ -56,7 +57,7 @@ function Get-Config {
     if (-not $outDir) { $outDir = $DefaultOut }
     # Verify-only reads a file that already exists, and a derivation check
     # reads the manifest -- neither needs credentials.
-    if (-not $dbUrl -and -not $VerifyFile -and -not $VerifyDerivation) {
+    if (-not $dbUrl -and -not $VerifyFile -and -not $VerifyDerivation -and -not $Configure) {
         throw "No connection string. Create $ConfigPath from scripts/backup-config.sample.json, or set AUTHVAULT_DB_URL."
     }
     # Supabase pooler: port 6543 (transaction mode) answers when 5432 refuses
@@ -98,9 +99,11 @@ function Invoke-DerivationCheck {
         Write-Log -Message "FAIL: no manifest at $ManifestPath -- take a backup first, or pass -VerifyFile <dump.sql>" -OutDir $OutDir
         return 7
     }
-    $key = $env:AUTHVAULT_ENCRYPTION_MASTER_KEY
+    # env.ts reads SIGNAKIT_ first, so accept it first here too.
+    $key = $env:SIGNAKIT_ENCRYPTION_MASTER_KEY
+    if (-not $key) { $key = $env:AUTHVAULT_ENCRYPTION_MASTER_KEY }
     if (-not $key) {
-        $secure = Read-Host -Prompt 'AUTHVAULT_ENCRYPTION_MASTER_KEY (paste from Bitwarden -- not echoed)' -AsSecureString
+        $secure = Read-Host -Prompt 'Master key -- SIGNAKIT_ENCRYPTION_MASTER_KEY if Railway has one, else AUTHVAULT_ENCRYPTION_MASTER_KEY (not echoed)' -AsSecureString
         $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
         try   { $key = [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr) }
         finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
@@ -129,6 +132,51 @@ function Invoke-DerivationCheck {
     }
     Write-Log -Message 'derivation check OK -- master key reproduces every wallet address' -OutDir $OutDir
     return 0
+}
+
+function Read-Secret {
+    param([string]$Prompt)
+    $secure = Read-Host -Prompt $Prompt -AsSecureString
+    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+    try   { return [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr) }
+    finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
+}
+
+# --- configure -------------------------------------------------------------
+if ($Configure) {
+    Write-Host "Supabase dashboard -> Connect (top of the page) -> Transaction pooler."
+    Write-Host "Copy the URI and replace [YOUR-PASSWORD] with the database password."
+    Write-Host ''
+    $uri = Read-Secret -Prompt 'Connection URI (not echoed)'
+    if (-not $uri) { Write-Host 'Nothing entered -- no change made.'; exit 1 }
+    $uri = $uri.Trim().Trim('"').Trim("'")
+    if ($uri -notmatch '^postgres(ql)?://') {
+        Write-Host "That does not look like a connection URI (it should start with postgresql://). No change made."
+        exit 1
+    }
+    if ($uri -match 'YOUR-PASSWORD|\[YOUR') {
+        Write-Host "The password placeholder is still in the URI. Replace [YOUR-PASSWORD] with the real password. No change made."
+        exit 1
+    }
+    if ($uri -notmatch ':6543/') {
+        Write-Host "NOTE: not port 6543. Session mode on 5432 has refused every connection before; 6543 (transaction pooler) is the one to use."
+    }
+
+    Write-Host 'Testing the connection...'
+    docker info *> $null
+    if ($LASTEXITCODE -ne 0) { Write-Host 'Docker is not running -- start Docker Desktop and re-run.'; exit 2 }
+    docker run --rm -e PGCONNECT_TIMEOUT=15 postgres:17 psql $uri -c 'select 1' *> $null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host 'Could not connect with that URI -- nothing was saved. Check the password and the port.'
+        exit 3
+    }
+
+    [pscustomobject]@{ dbUrl = $uri; outDir = $DefaultOut } |
+        ConvertTo-Json | Set-Content -Path $ConfigPath -Encoding utf8
+    $uri = $null
+    Write-Host "Connection OK. Saved to $ConfigPath"
+    Write-Host "Next:  .\scriptsackup-authvault.ps1"
+    exit 0
 }
 
 # --- install ---------------------------------------------------------------

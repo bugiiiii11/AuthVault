@@ -25,8 +25,8 @@ import { secp256k1 } from '@noble/curves/secp256k1';
 import { keccak_256 } from '@noble/hashes/sha3';
 
 const manifestPath = process.argv[2];
-const masterKeyHex = process.env.AUTHVAULT_ENCRYPTION_MASTER_KEY
-  || process.env.SIGNAKIT_ENCRYPTION_MASTER_KEY;
+const masterKeyHex = process.env.SIGNAKIT_ENCRYPTION_MASTER_KEY
+  || process.env.AUTHVAULT_ENCRYPTION_MASTER_KEY;
 
 if (!manifestPath) {
   console.error('usage: node scripts/verify-derivation.mjs <recovery-manifest.csv>');
@@ -71,7 +71,9 @@ function privateKeyToEvmAddress(privateKey) {
   return '0x' + bytesToHex(keccak_256(pub.slice(1)).slice(-20));
 }
 
-const lines = readFileSync(manifestPath, 'utf8').split(/\r?\n/).filter(Boolean);
+const lines = readFileSync(manifestPath, 'utf8')
+  .replace(/^﻿/, '')          // PowerShell writes UTF-8 with a BOM
+  .split(/\r?\n/).filter(Boolean);
 const header = lines.shift();
 if (header.trim() !== 'user_id,evm_address') {
   console.error(`unexpected manifest header: ${header}`);
@@ -94,10 +96,22 @@ for (const m of mismatches.slice(0, 10)) {
 }
 if (mismatches.length > 10) console.error(`  ... and ${mismatches.length - 10} more`);
 
-// Zero rows is a failure, not a pass: an empty manifest would otherwise report
-// "0 mismatch" and read as green.
-if (ok === 0) {
-  console.error('no rows verified -- the manifest is empty');
+// An empty manifest would otherwise report "0 mismatch" and read as green.
+if (ok === 0 && mismatches.length === 0) {
+  console.error('no rows in the manifest -- take a backup first');
   process.exit(66);
+}
+// Every row wrong is a different diagnosis from some rows wrong: the key does
+// not belong to this project at all, rather than the wallets having drifted.
+if (ok === 0) {
+  console.error('');
+  console.error('EVERY row mismatched, so the value given is not the master key this');
+  console.error('project derives from. Most likely causes, in order:');
+  console.error('  1. Railway also has SIGNAKIT_ENCRYPTION_MASTER_KEY set. env.ts reads');
+  console.error('     that one FIRST, so it -- not AUTHVAULT_ENCRYPTION_MASTER_KEY -- is');
+  console.error('     what the live wallets came from. Check both variables.');
+  console.error('  2. A different secret was pasted (the database password is not this).');
+  console.error('  3. Trailing whitespace or quotes around the value.');
+  process.exit(1);
 }
 process.exit(mismatches.length === 0 ? 0 : 1);
