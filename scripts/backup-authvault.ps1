@@ -54,8 +54,9 @@ function Get-Config {
         if ($cfg.outDir)  { $outDir = $cfg.outDir }
     }
     if (-not $outDir) { $outDir = $DefaultOut }
-    # Verify-only reads a file that already exists; it needs no credentials.
-    if (-not $dbUrl -and -not $VerifyFile) {
+    # Verify-only reads a file that already exists, and a derivation check
+    # reads the manifest -- neither needs credentials.
+    if (-not $dbUrl -and -not $VerifyFile -and -not $VerifyDerivation) {
         throw "No connection string. Create $ConfigPath from scripts/backup-config.sample.json, or set AUTHVAULT_DB_URL."
     }
     # Supabase pooler: port 6543 (transaction mode) answers when 5432 refuses
@@ -88,6 +89,48 @@ function Get-CopyRowCount {
     return -1   # unterminated block = truncated dump
 }
 
+# The master key derives every wallet, so it must never reach a command line:
+# PSReadLine writes whole command lines to ConsoleHost_history.txt on exit, and
+# `$env:X = '<key>'` is a command line. Read it into this process only.
+function Invoke-DerivationCheck {
+    param([string]$ManifestPath, [string]$RepoRoot, [string]$OutDir)
+    if (-not (Test-Path $ManifestPath)) {
+        Write-Log -Message "FAIL: no manifest at $ManifestPath -- take a backup first, or pass -VerifyFile <dump.sql>" -OutDir $OutDir
+        return 7
+    }
+    $key = $env:AUTHVAULT_ENCRYPTION_MASTER_KEY
+    if (-not $key) {
+        $secure = Read-Host -Prompt 'AUTHVAULT_ENCRYPTION_MASTER_KEY (paste from Bitwarden -- not echoed)' -AsSecureString
+        $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+        try   { $key = [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr) }
+        finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
+    }
+    if (-not $key) {
+        Write-Log -Message 'SKIP derivation check: no master key given' -OutDir $OutDir
+        return 0
+    }
+    Push-Location (Join-Path $RepoRoot 'apps\backend')
+    try {
+        $env:AUTHVAULT_ENCRYPTION_MASTER_KEY = $key
+        # Out-Host, not bare: anything a command writes to stdout inside a
+        # function joins that function's return value, and a mismatch then
+        # exits 0 while printing FAIL. Caught by the failure-path test.
+        node scripts\verify-derivation.mjs $ManifestPath | Out-Host
+        $rc = $LASTEXITCODE
+    }
+    finally {
+        Remove-Item Env:\AUTHVAULT_ENCRYPTION_MASTER_KEY -ErrorAction SilentlyContinue
+        $key = $null
+        Pop-Location
+    }
+    if ($rc -ne 0) {
+        Write-Log -Message "FAIL: derivation check exited $rc -- the master key no longer reproduces the live wallets" -OutDir $OutDir
+        return 6
+    }
+    Write-Log -Message 'derivation check OK -- master key reproduces every wallet address' -OutDir $OutDir
+    return 0
+}
+
 # --- install ---------------------------------------------------------------
 if ($Install) {
     $action = New-ScheduledTaskAction -Execute 'powershell.exe' `
@@ -115,6 +158,15 @@ if (-not (Test-Path $cfg.OutDir)) {
 }
 
 Write-Log -Message 'backup start' -OutDir $cfg.OutDir
+
+if ($VerifyDerivation -and -not $VerifyFile -and -not $cfg.DbUrl) {
+    # Nothing to dump and nothing to re-verify: check the manifest the last
+    # run left behind. This is the useful shape when the DSN is not configured
+    # yet -- the recovery path can be proven before the schedule exists.
+    $rc = Invoke-DerivationCheck -ManifestPath (Join-Path $cfg.OutDir 'recovery-manifest.csv') `
+                                -RepoRoot $RepoRoot -OutDir $cfg.OutDir
+    exit ([int]($rc | Select-Object -Last 1))
+}
 
 if ($VerifyFile) {
     # Re-run the checks against a dump that already exists (an archived copy,
@@ -229,17 +281,6 @@ Write-Log -OutDir $cfg.OutDir -Message ("OK {0} ({1} KB) -- wallet_users={2} enc
 
 # --- optional: prove the recovery path still works -------------------------
 if ($VerifyDerivation) {
-    if (-not $env:AUTHVAULT_ENCRYPTION_MASTER_KEY) {
-        Write-Log -Message 'SKIP derivation check: AUTHVAULT_ENCRYPTION_MASTER_KEY not set' -OutDir $cfg.OutDir
-        exit 0
-    }
-    Push-Location (Join-Path $RepoRoot 'apps\backend')
-    node scripts\verify-derivation.mjs $manifest
-    $rc = $LASTEXITCODE
-    Pop-Location
-    if ($rc -ne 0) {
-        Write-Log -Message "FAIL: derivation check exited $rc -- the master key no longer reproduces the live wallets" -OutDir $cfg.OutDir
-        exit 6
-    }
-    Write-Log -Message 'derivation check OK -- master key reproduces every wallet address' -OutDir $cfg.OutDir
+    $rc = Invoke-DerivationCheck -ManifestPath $manifest -RepoRoot $RepoRoot -OutDir $cfg.OutDir
+    exit ([int]($rc | Select-Object -Last 1))
 }
