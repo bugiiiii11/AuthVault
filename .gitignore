@@ -29,3 +29,10 @@ emergency-snapshot.md
 
 # Memory (local only)
 memory/
+
+# Backup tooling: the DSN config lives in %USERPROFILE%, never here
+.authvault-backup.json
+AuthVaultBackups/
+authvault_*.sql
+authvault_*.zip
+recovery-manifest.csv

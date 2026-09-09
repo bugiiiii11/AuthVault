@@ -1,0 +1,5 @@
+{
+  "_comment": "Copy to %USERPROFILE%\\.authvault-backup.json and fill in. NEVER commit the real file -- it carries the database password. Get the DSN from Supabase: Project Settings -> Database -> Connection string -> URI, then swap the port to 6543 (transaction pooler): session mode on 5432 has refused every connection before while 6543 answered fine.",
+  "dbUrl": "postgresql://postgres.hldkdiibvsdtgxnqaaxq:YOUR_DB_PASSWORD@aws-0-eu-west-1.pooler.supabase.com:6543/postgres",
+  "outDir": "C:\\Users\\YOU\\AuthVaultBackups"
+}
