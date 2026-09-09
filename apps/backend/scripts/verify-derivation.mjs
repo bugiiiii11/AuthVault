@@ -74,16 +74,24 @@ function privateKeyToEvmAddress(privateKey) {
 const lines = readFileSync(manifestPath, 'utf8')
   .replace(/^﻿/, '')          // PowerShell writes UTF-8 with a BOM
   .split(/\r?\n/).filter(Boolean);
-const header = lines.shift();
-if (header.trim() !== 'user_id,evm_address') {
+const header = lines.shift().trim();
+const HEADERS = {
+  'user_id,supabase_auth_id,evm_address': ['user_id', 'supabase_auth_id'],
+  'user_id,evm_address': ['user_id'],
+};
+const saltNames = HEADERS[header];
+if (!saltNames) {
   console.error(`unexpected manifest header: ${header}`);
+  console.error('expected: user_id,supabase_auth_id,evm_address');
   process.exit(65);
 }
 
-const pairs = lines
-  .map((l) => l.split(','))
-  .filter(([u, a]) => u && a)
-  .map(([u, a]) => [u.trim(), a.trim()]);
+// Each row becomes { salts: [...candidate identities], address }.
+const rows = lines
+  .map((l) => l.split(',').map((c) => c.trim()))
+  .filter((c) => c.length === saltNames.length + 1 && c[c.length - 1])
+  .map((c) => ({ salts: c.slice(0, -1), address: c[c.length - 1] }))
+  .filter((r) => r.salts[0]);
 
 // A pasted secret picks up whitespace, quotes or a 0x prefix, and any of those
 // derives a completely different key. Probe the cheap variants against a few
@@ -101,23 +109,37 @@ for (const [label, value] of [
   if (value && !seen.has(value)) { seen.add(value); variants.push([label, value]); }
 }
 
-const probe = pairs.slice(0, 3);
-let chosen = variants[0];
+// Probe every (key variant x identity column) combination against a few rows,
+// then run the whole manifest with whichever combination works. Trying the
+// identity column matters as much as the key: an app that renamed itself and
+// then shipped two address-mismatch fixes is exactly where a derivation
+// identity quietly changes.
+const probe = rows.slice(0, 3);
+let chosen = { key: variants[0], saltIdx: 0 };
+let found = false;
+outer:
 for (const v of variants) {
-  const hit = probe.every(([u, a]) =>
-    privateKeyToEvmAddress(deriveUserPrivateKey(v[1], u)).toLowerCase() === a.toLowerCase());
-  if (hit) { chosen = v; break; }
+  for (let s = 0; s < saltNames.length; s++) {
+    if (!probe.every((r) => r.salts[s])) continue;
+    const hit = probe.every((r) =>
+      privateKeyToEvmAddress(deriveUserPrivateKey(v[1], r.salts[s])).toLowerCase()
+        === r.address.toLowerCase());
+    if (hit) { chosen = { key: v, saltIdx: s }; found = true; break outer; }
+  }
 }
-if (chosen[0] !== 'as given') {
-  console.log(`NOTE: the value only works with "${chosen[0]}" -- fix it at the source too.`);
+if (found && (chosen.key[0] !== 'as given' || chosen.saltIdx !== 0)) {
+  console.log(`NOTE: matched using key "${chosen.key[0]}" and identity `
+    + `"${saltNames[chosen.saltIdx]}" -- record that, it is not the assumed pair.`);
 }
 
 let ok = 0;
 const mismatches = [];
-for (const [userId, expected] of pairs) {
-  const actual = privateKeyToEvmAddress(deriveUserPrivateKey(chosen[1], userId));
-  if (actual.toLowerCase() === expected.toLowerCase()) ok++;
-  else mismatches.push({ userId, expected, actual });
+for (const r of rows) {
+  const salt = r.salts[chosen.saltIdx];
+  if (!salt) { mismatches.push({ userId: r.salts[0], expected: r.address, actual: '(no identity)' }); continue; }
+  const actual = privateKeyToEvmAddress(deriveUserPrivateKey(chosen.key[1], salt));
+  if (actual.toLowerCase() === r.address.toLowerCase()) ok++;
+  else mismatches.push({ userId: salt, expected: r.address, actual });
 }
 
 console.log(`derivation check: ${ok} match, ${mismatches.length} mismatch (of ${ok + mismatches.length})`);
@@ -135,8 +157,8 @@ if (ok === 0 && mismatches.length === 0) {
 // not belong to this project at all, rather than the wallets having drifted.
 if (ok === 0) {
   console.error('');
-  console.error('EVERY row mismatched, and whitespace/quote/0x variants were already');
-  console.error('tried. The value given is not what these wallets were derived from.');
+  console.error('EVERY row mismatched. Whitespace/quote/0x variants of the key were');
+  console.error(`tried, against ${saltNames.length} identity column(s): ${saltNames.join(', ')}.`);
   console.error('');
   console.error('What this does NOT mean: the manifest and the UUID are fine (the salt is');
   console.error('wallet_users.id, which is auth.sub -- generate.ts:41), and this script is');

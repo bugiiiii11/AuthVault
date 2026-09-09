@@ -287,16 +287,40 @@ if ($counts['public.encrypted_keys'] -gt $counts['vault.secrets']) {
 # --- recovery manifest -----------------------------------------------------
 # user_id -> evm_address. Tiny, and it is the half of the recovery path that
 # the master key alone cannot supply: HKDF needs the user UUID as its salt.
-$manifest = Join-Path $cfg.OutDir 'recovery-manifest.csv'
-$rows = @('user_id,evm_address')
-$start = -1
-for ($i = 0; $i -lt $lines.Count; $i++) {
-    if ($lines[$i] -like 'COPY public.encrypted_keys (*FROM stdin;') { $start = $i + 1; break }
+# Both candidate salts go in. The live code derives from auth.sub, which is
+# wallet_users.id (generate.ts:41) -- but this app renamed itself mid-life and
+# shipped two "address mismatch" fixes in the days right after, so which
+# identity the older keys were derived from is a question the data should
+# answer rather than a comment. The verifier probes both and reports which won.
+function Get-CopyRows {
+    param([string[]]$Lines, [string]$Table)
+    for ($i = 0; $i -lt $Lines.Count; $i++) {
+        if ($Lines[$i] -like "COPY $Table (*FROM stdin;") {
+            $cols = ($Lines[$i] -replace '^COPY \S+ \(', '' -replace '\) FROM stdin;$', '') -split ',\s*'
+            $rows = New-Object System.Collections.ArrayList
+            for ($j = $i + 1; $j -lt $Lines.Count -and $Lines[$j] -ne '\.'; $j++) {
+                $vals = $Lines[$j] -split "`t"
+                $o = @{}
+                for ($k = 0; $k -lt $cols.Count; $k++) { $o[$cols[$k]] = $vals[$k] }
+                [void]$rows.Add([pscustomobject]$o)
+            }
+            return ,$rows
+        }
+    }
+    return ,(New-Object System.Collections.ArrayList)
 }
-for ($i = $start; $i -lt $lines.Count; $i++) {
-    if ($lines[$i] -eq '\.') { break }
-    $f = $lines[$i] -split "`t"
-    if ($f.Count -ge 5) { $rows += ('{0},{1}' -f $f[1], $f[4]) }
+
+$manifest = Join-Path $cfg.OutDir 'recovery-manifest.csv'
+$authById = @{}
+foreach ($w in (Get-CopyRows -Lines $lines -Table 'public.wallet_users')) {
+    $authById[$w.id] = $w.supabase_auth_id
+}
+$rows = New-Object System.Collections.ArrayList
+[void]$rows.Add('user_id,supabase_auth_id,evm_address')
+foreach ($k in (Get-CopyRows -Lines $lines -Table 'public.encrypted_keys')) {
+    $sid = $authById[$k.user_id]
+    if (-not $sid -or $sid -eq ('\' + 'N')) { $sid = '' }
+    [void]$rows.Add(('{0},{1},{2}' -f $k.user_id, $sid, $k.evm_address))
 }
 Set-Content -Path $manifest -Value $rows -Encoding utf8
 
