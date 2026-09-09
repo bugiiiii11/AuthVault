@@ -86,10 +86,23 @@ and the backup really is a recovery plan. Deliberately not part of the scheduled
 key should not sit in a Scheduled Task.
 
 ```powershell
-$env:AUTHVAULT_ENCRYPTION_MASTER_KEY = '<from Bitwarden>'
 .\scripts\backup-authvault.ps1 -VerifyDerivation
-Remove-Item Env:\AUTHVAULT_ENCRYPTION_MASTER_KEY
 ```
+
+It prompts for the key without echoing it, holds it for the child process only, and clears it
+afterwards. **Do not put the key on a command line** — PSReadLine writes whole command lines to
+`ConsoleHost_history.txt` when the session exits, so `$env:KEY = '<value>'` lands on disk in
+plaintext. If that has already happened, run `Set-PSReadLineOption -HistorySaveStyle SaveNothing`
+in that session before closing it, then purge any surviving lines:
+
+```powershell
+$h = (Get-PSReadLineOption).HistorySavePath
+(Get-Content $h) | Where-Object { $_ -notmatch 'ENCRYPTION_MASTER_KEY' } | Set-Content $h
+```
+
+With no DSN configured and no dump to check, `-VerifyDerivation` runs on its own against the
+manifest the last run left behind — so the recovery path can be proven before the schedule
+exists. Exit codes: **0** every address matches · **6** at least one does not · **7** no manifest.
 
 Worth running after any change to key derivation, and once a quarter otherwise.
 
